@@ -1,0 +1,168 @@
+<ImportExportXml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" OrganizationVersion="9.2.26093.167" OrganizationSchemaType="Standard" CRMServerServiceabilityVersion="9.2.26093.00167">
+  <Entities></Entities>
+  <Roles></Roles>
+  <Workflows>
+    <Workflow WorkflowId="{427f9064-92b8-f111-aaac-000d3a5b8cf1}" Name="Validate Flow">
+      <JsonFileName>/Workflows/ValidateFlow-427F9064-92B8-F111-AAAC-000D3A5B8CF1.json</JsonFileName>
+      <Type>1</Type>
+      <Subprocess>0</Subprocess>
+      <Category>5</Category>
+      <Mode>0</Mode>
+      <Scope>4</Scope>
+      <OnDemand>0</OnDemand>
+      <TriggerOnCreate>0</TriggerOnCreate>
+      <TriggerOnDelete>0</TriggerOnDelete>
+      <AsyncAutodelete>0</AsyncAutodelete>
+      <SyncWorkflowLogOnFailure>0</SyncWorkflowLogOnFailure>
+      <StateCode>1</StateCode>
+      <StatusCode>2</StatusCode>
+      <RunAs>1</RunAs>
+      <IsTransacted>1</IsTransacted>
+      <IntroducedVersion>1.0</IntroducedVersion>
+      <IsCustomizable>1</IsCustomizable>
+      <BusinessProcessType>0</BusinessProcessType>
+      <IsCustomProcessingStepAllowedForOtherPublishers>1</IsCustomProcessingStepAllowedForOtherPublishers>
+      <ModernFlowType>1</ModernFlowType>
+      <PrimaryEntity>none</PrimaryEntity>
+    </Workflow>
+  </Workflows>
+  <FieldSecurityProfiles></FieldSecurityProfiles>
+  <Templates />
+  <EntityMaps />
+  <EntityRelationships />
+  <OrganizationSettings />
+  <optionsets />
+  <CustomControls />
+  <EntityDataProviders />
+  <AIModels>
+    <AIModel>
+      <msdyn_aimodelid>{8e37b080-0613-4230-b246-4560cf8cde32}</msdyn_aimodelid>
+      <msdyn_name>IR - Read Bank Rec PDF</msdyn_name>
+      <msdyn_templateid>{edfdb190-3791-45d8-9a6c-8f90a37c278a}</msdyn_templateid>
+      <statecode>1</statecode>
+      <statuscode>1</statuscode>
+      <IsCustomizable>1</IsCustomizable>
+      <msdyn_activerunconfigurationid>{b8a5c1e7-8327-4ac0-b344-2b2cee3ac09d}</msdyn_activerunconfigurationid>
+      <AIConfigurations>
+        <AIConfiguration>
+          <msdyn_aiconfigurationid>{b8a5c1e7-8327-4ac0-b344-2b2cee3ac09d}</msdyn_aiconfigurationid>
+          <msdyn_customconfiguration>{"version":"GptDynamicPrompt-2","prompt":[{"type":"literal","text":"You are reading a Yardi bank reconciliation package for a property. The file is: "},{"type":"inputVariable","id":"BankRecPDF"},{"type":"literal","text":" \n\nThe package contains one \"Bank Reconciliation Report\" per bank account, followed by bank statement pages and general ledger pages. Read ONLY the Bank Reconciliation Report pages. Ignore bank statement transaction pages.\n\nReturn one object in \"bankRecs\" for each Bank Reconciliation Report in the file.\n\nRules:\n- Copy every number exactly as printed. Never calculate, round, correct or fill in a number.\n- Amounts are numbers without commas or dollar signs. Keep the minus sign when the report prints one. Amounts in parentheses are negative.\n- Every date must be written as four-digit year, then month, then day, separated by hyphens, for example 2026-07-24. Never use slashes or US month/day/year order.\n- List every line of each section. Do not skip or merge lines. A reconciliation report can continue on the next page (\"Other Items\" and the balance lines are often on page 2).\n- If a section is not on the report, return an empty list [] and 0 for its total.\n- accountName is the title line of the report, for example \"610 West - Operating\".\n- bankAccountLast4 is ONLY the last 4 digits of the bank account number. Never return the full account number.\n- glAccount is the GL cash account code shown on the General Ledger page that follows that account's statement, for example \"11020-000\". If you cannot find it, return \"\".\n- reconciliationDate is the report date under the title.\n- outstandingDepositsTotal is the \"Plus: Outstanding Deposits\" line. outstandingChecksTotal is the \"Less: Outstanding Checks\" line, as a positive number. reconcilingItemsTotal is \"Plus/Minus: Bank Reconciling Items\". otherItemsTotal is \"Plus/Minus: Other Items\".\n- glBalance is \"Balance per GL\". difference is the \"Difference\" line.\n- For outstanding checks: reference is the check number and description is the payee name without the vendor code.\n- For outstanding deposits: reference is the deposit number and description is \"\".\n- For reconciling items and other items: reference is \"\" and description is the Notes text.\nReturn only the JSON.\n\n"}],"definitions":{"inputs":[{"id":"BankRecPDF","text":"BankRecPDF","type":"document"}],"formulas":[],"data":[],"output":{"formats":["json"],"jsonSchema":{"type":"object","properties":{"bankRecs":{"type":"array","items":{"type":"object","properties":{"accountName":{"type":"string"},"bankAccountLast4":{"type":"string"},"glAccount":{"type":"string"},"reconciliationDate":{"type":"string"},"bankStatementBalance":{"type":"number"},"outstandingDepositsTotal":{"type":"number"},"outstandingChecksTotal":{"type":"number"},"reconcilingItemsTotal":{"type":"number"},"otherItemsTotal":{"type":"number"},"reconciledBankBalance":{"type":"number"},"glBalance":{"type":"number"},"difference":{"type":"number"},"outstandingDeposits":{"type":"array","items":{"type":"object","properties":{"date":{"type":"string"},"reference":{"type":"string"},"description":{"type":"string"},"amount":{"type":"number"}},"required":["date","reference","description","amount"]}},"outstandingChecks":{"type":"array","items":{"type":"object","properties":{"date":{"type":"string"},"reference":{"type":"string"},"description":{"type":"string"},"amount":{"type":"number"}},"required":["date","reference","description","amount"]}},"reconcilingItems":{"type":"array","items":{"type":"object","properties":{"date":{"type":"string"},"reference":{"type":"string"},"description":{"type":"string"},"amount":{"type":"number"}},"required":["date","reference","description","amount"]}},"otherItems":{"type":"array","items":{"type":"object","properties":{"date":{"type":"string"},"reference":{"type":"string"},"description":{"type":"string"},"amount":{"type":"number"}},"required":["date","reference","description","amount"]}}},"required":["accountName","bankAccountLast4","glAccount","reconciliationDate","bankStatementBalance","outstandingDepositsTotal","outstandingChecksTotal","reconcilingItemsTotal","otherItemsTotal","reconciledBankBalance","glBalance","difference","outstandingDeposits","outstandingChecks","reconcilingItems","otherItems"]}}}},"jsonExamples":[{"bankRecs":[{"accountName":"Sample Property - Operating","bankAccountLast4":"1234","glAccount":"11020-000","reconciliationDate":"2026-01-31","bankStatementBalance":1000,"outstandingDepositsTotal":200,"outstandingChecksTotal":150,"reconcilingItemsTotal":-25,"otherItemsTotal":10,"reconciledBankBalance":1035,"glBalance":1035,"difference":0,"outstandingDeposits":[{"date":"2026-01-30","reference":"1501","description":"","amount":200}],"outstandingChecks":[{"date":"2026-01-15","reference":"901","description":"Sample Vendor LLC","amount":150}],"reconcilingItems":[{"date":"2026-01-10","reference":"","description":"01.26 deposit O/S to GL","amount":-25}],"otherItems":[{"date":"2026-01-31","reference":"","description":"01/26 SD True Up","amount":10}]}]}],"isCustomUserFormat":true}},"modelParameters":{"modelType":"gpt-41-mini","gptParameters":{"temperature":0}},"settings":{"recordRetrievalLimit":30,"shouldPreserveRecordLinks":null,"runtime":null},"code":"","signature":""}</msdyn_customconfiguration>
+          <msdyn_majoriterationnumber>1</msdyn_majoriterationnumber>
+          <msdyn_minoriterationnumber>0</msdyn_minoriterationnumber>
+          <msdyn_name>8e37b080-0613-4230-b246-4560cf8cde32_9/25/2026 4:39:01 AM</msdyn_name>
+          <msdyn_modelrundataspecification>H4sIAAAAAAAACu2UwW7CMAyGX2XKuZdJaAduMEBCmrYJ0O4mMZCtJFXiSkPT3n1Jy0rXuBOIKz21/X9/duwkX2JZoJxZtwd6Q+e1NWJ4n4m5KUpaWEtTQ5oOYvglJtoXORyeYY9iKEQmRkROr0tCH+UxmI8FytfJjDWvDkV8e1m/o6TwfTZ3DR4fBlMjrUKV+ltpM/FSUFgA5GK4gdxjk3VcMZYBa7biOzyZAKV0bX60hvCTUvQosbQzkCv7EwRjSZd2kK9iVSc+JvpNkYmNNtrvFgg+jqwbNavUu6PMhPtQv6TSoaorjYgrZlQNwbcgI+fgcAkDpLSloVruutsis5iYf1RbnsDTIAUkDoayzY+ONPwkMXEOpTVS5xri3pgAMQtgPD3rWFIQ92hoDDkYybBYV0MLI88jy5bkCYwK6AkW1mvyK0tx53Z5vc7/mI87lB9nENu+hNd0xWznYTl9ON6WVkc7dP9xuobeelDFa6V3ALwtoW3zXsJJSqKU3mzQIRvW0s6Z9zXHUbHbuPrLHoHemk8SE6fQS6erO5VJ1hKZWNjzZ/X4v9Og6lJO9uWtQ50OdY/arUHdLdTcIbfW/GlN8/wAjZ/tBFMKAAA=</msdyn_modelrundataspecification>
+          <msdyn_type>190690001</msdyn_type>
+          <msdyn_aimodelid>{8e37b080-0613-4230-b246-4560cf8cde32}</msdyn_aimodelid>
+          <msdyn_trainedmodelaiconfigurationpareid>{8c46c005-9bb8-f111-aaab-7ced8d70454f}</msdyn_trainedmodelaiconfigurationpareid>
+          <statecode>2</statecode>
+          <statuscode>7</statuscode>
+          <IsCustomizable>1</IsCustomizable>
+          <msdyn_templateversion>1</msdyn_templateversion>
+        </AIConfiguration>
+        <AIConfiguration>
+          <msdyn_aiconfigurationid>{8c46c005-9bb8-f111-aaab-7ced8d70454f}</msdyn_aiconfigurationid>
+          <msdyn_majoriterationnumber>1</msdyn_majoriterationnumber>
+          <msdyn_minoriterationnumber>0</msdyn_minoriterationnumber>
+          <msdyn_modeldata>bba25927-846a-4c88-9f3a-e5ca809b494d</msdyn_modeldata>
+          <msdyn_name>8e37b080-0613-4230-b246-4560cf8cde32_Training_9/25/2026 4:38:59 AM</msdyn_name>
+          <msdyn_modelrundataspecification>
+        {
+          "schemaVersion": 2,
+          "input": {},
+          "output": {}
+        }
+      </msdyn_modelrundataspecification>
+          <msdyn_type>190690000</msdyn_type>
+          <msdyn_aimodelid>{8e37b080-0613-4230-b246-4560cf8cde32}</msdyn_aimodelid>
+          <statecode>2</statecode>
+          <statuscode>6</statuscode>
+          <IsCustomizable>1</IsCustomizable>
+          <msdyn_templateversion>1</msdyn_templateversion>
+        </AIConfiguration>
+      </AIConfigurations>
+    </AIModel>
+    <AIModel>
+      <msdyn_aimodelid>{15e308bd-f978-470f-a5bc-64bb2e2ab8d3}</msdyn_aimodelid>
+      <msdyn_name>IR - Read Mortgage Statement PDF</msdyn_name>
+      <msdyn_templateid>{edfdb190-3791-45d8-9a6c-8f90a37c278a}</msdyn_templateid>
+      <statecode>1</statecode>
+      <statuscode>1</statuscode>
+      <IsCustomizable>1</IsCustomizable>
+      <msdyn_activerunconfigurationid>{ea92154f-77d0-497f-a462-acc834eac85f}</msdyn_activerunconfigurationid>
+      <AIConfigurations>
+        <AIConfiguration>
+          <msdyn_aiconfigurationid>{ea92154f-77d0-497f-a462-acc834eac85f}</msdyn_aiconfigurationid>
+          <msdyn_customconfiguration>{"version":"GptDynamicPrompt-2","prompt":[{"type":"literal","text":"You are reading a mortgage loan billing statement from a loan servicer. The file is: "},{"type":"inputVariable","id":"MortgagePDF"},{"type":"literal","text":" \n\nReturn one object in \"mortgages\" for each loan in the file (usually one).\n\nRules:\n- Copy every number exactly as printed. Never calculate, round, correct or fill in a number.\n- Amounts are numbers without commas or dollar signs. If a balance is not shown on the statement, return 0.\n- Dates are text in YYYY-MM-DD format.\n- servicer is the company that issued the statement.\n- loanNumberLast4 is ONLY the last 4 digits of the loan number.\n- statementDate is the printed or statement date. paymentDueDate is the due date of the payment being billed.\n- principalBalance is the unpaid principal balance of the loan (not the principal payment due).\n- interestDue is the interest portion of the payment being billed.\n- taxEscrowBalance, insuranceEscrowBalance, replacementReserveBalance and otherReserveBalance are the BALANCES held by the servicer, not the monthly escrow payments.\nReturn only the JSON.\n"}],"definitions":{"inputs":[{"id":"MortgagePDF","text":"MortgagePDF","type":"document"}],"formulas":[],"data":[],"output":{"formats":["json"],"jsonSchema":{"type":"object","properties":{"mortgages":{"type":"array","items":{"type":"object","properties":{"servicer":{"type":"string"},"loanNumberLast4":{"type":"string"},"statementDate":{"type":"string"},"paymentDueDate":{"type":"string"},"principalBalance":{"type":"number"},"interestDue":{"type":"number"},"taxEscrowBalance":{"type":"number"},"insuranceEscrowBalance":{"type":"number"},"replacementReserveBalance":{"type":"number"},"otherReserveBalance":{"type":"number"}},"required":["servicer","loanNumberLast4","statementDate","paymentDueDate","principalBalance","interestDue","taxEscrowBalance","insuranceEscrowBalance","replacementReserveBalance","otherReserveBalance"]}}}},"jsonExamples":[{"mortgages":[{"servicer":"Sample Servicer","loanNumberLast4":"1234","statementDate":"2026-01-20","paymentDueDate":"2026-02-01","principalBalance":1000000,"interestDue":5000,"taxEscrowBalance":25000,"insuranceEscrowBalance":8000,"replacementReserveBalance":12000,"otherReserveBalance":0}]}],"isCustomUserFormat":true}},"modelParameters":{"modelType":"gpt-41","gptParameters":{"temperature":0}},"settings":{"recordRetrievalLimit":30,"shouldPreserveRecordLinks":null,"runtime":null},"code":""}</msdyn_customconfiguration>
+          <msdyn_majoriterationnumber>1</msdyn_majoriterationnumber>
+          <msdyn_minoriterationnumber>0</msdyn_minoriterationnumber>
+          <msdyn_name>15e308bd-f978-470f-a5bc-64bb2e2ab8d3_9/25/2026 4:41:50 AM</msdyn_name>
+          <msdyn_modelrundataspecification>H4sIAAAAAAAACp2SQW/CMAyF/8qUcy+T0A7cYIA0aYMJ0O5uaiBTm1SOu1Gh/fclhVVdk4qxXJrqPX/PiXMSmxLlwlAB/IZkldFifJ+IJ11WvDaG55oV12J8EjNlyxzqJRQoxkIkYsJMKq0YrZdfDPEe9vg6W0Td27r0u1X6jpLd/5/BKVh8GM21NBlmob+bm4hVye4IkIvxDnKLbey0gWwcV+/Fl1uJgCxTZ/Oj0YxHDtmTwNJNYKqGA5yx4lvvMN7F9hx8CfqJSMROaWUPawTrh9avWjTq3UWOlFvXv+SKMDt36hH/HlJxmYLtUCZEUN8CsUgfSiKF1laJnCM3oJdVkSI9g+VRWNw3RO8CGAvUPHPfSPwvOVJfQt3IFcYBPT1GcBupSsinkIOWMUbf0VLcjHPPUO6NElofE5Z3xaCS4Ti3ksznYHrgiKTbirx0hTTgC3iErkg2175G/wBwEDlsDaiGD0jXeDFTj9Sub1x9g/NCBQAA</msdyn_modelrundataspecification>
+          <msdyn_type>190690001</msdyn_type>
+          <msdyn_aimodelid>{15e308bd-f978-470f-a5bc-64bb2e2ab8d3}</msdyn_aimodelid>
+          <msdyn_trainedmodelaiconfigurationpareid>{7a750665-9bb8-f111-aaac-002248046b7b}</msdyn_trainedmodelaiconfigurationpareid>
+          <statecode>2</statecode>
+          <statuscode>7</statuscode>
+          <IsCustomizable>1</IsCustomizable>
+          <msdyn_templateversion>1</msdyn_templateversion>
+        </AIConfiguration>
+        <AIConfiguration>
+          <msdyn_aiconfigurationid>{7a750665-9bb8-f111-aaac-002248046b7b}</msdyn_aiconfigurationid>
+          <msdyn_majoriterationnumber>1</msdyn_majoriterationnumber>
+          <msdyn_minoriterationnumber>0</msdyn_minoriterationnumber>
+          <msdyn_modeldata>f11d5a86-44e5-4705-b7cd-5b97665d2ee3</msdyn_modeldata>
+          <msdyn_name>15e308bd-f978-470f-a5bc-64bb2e2ab8d3_Training_9/25/2026 4:41:48 AM</msdyn_name>
+          <msdyn_modelrundataspecification>
+        {
+          "schemaVersion": 2,
+          "input": {},
+          "output": {}
+        }
+      </msdyn_modelrundataspecification>
+          <msdyn_type>190690000</msdyn_type>
+          <msdyn_aimodelid>{15e308bd-f978-470f-a5bc-64bb2e2ab8d3}</msdyn_aimodelid>
+          <statecode>2</statecode>
+          <statuscode>6</statuscode>
+          <IsCustomizable>1</IsCustomizable>
+          <msdyn_templateversion>1</msdyn_templateversion>
+        </AIConfiguration>
+      </AIConfigurations>
+    </AIModel>
+  </AIModels>
+  <connectionreferences>
+    <connectionreference connectionreferencelogicalname="new_sharedcommondataserviceforapps_4fbfd">
+      <connectionreferencedisplayname>Microsoft Dataverse</connectionreferencedisplayname>
+      <connectorid>/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps</connectorid>
+      <iscustomizable>1</iscustomizable>
+      <promptingbehavior>0</promptingbehavior>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </connectionreference>
+    <connectionreference connectionreferencelogicalname="new_sharedexcelonlinebusiness_b8622">
+      <connectionreferencedisplayname>Excel Online (Business)</connectionreferencedisplayname>
+      <connectorid>/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness</connectorid>
+      <iscustomizable>1</iscustomizable>
+      <promptingbehavior>0</promptingbehavior>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </connectionreference>
+    <connectionreference connectionreferencelogicalname="new_sharedsharepointonline_e2b4c">
+      <connectionreferencedisplayname>SharePoint</connectionreferencedisplayname>
+      <connectorid>/providers/Microsoft.PowerApps/apis/shared_sharepointonline</connectorid>
+      <iscustomizable>1</iscustomizable>
+      <promptingbehavior>0</promptingbehavior>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </connectionreference>
+    <connectionreference connectionreferencelogicalname="new_sharedteams_999cf">
+      <connectionreferencedisplayname>Microsoft Teams</connectionreferencedisplayname>
+      <connectorid>/providers/Microsoft.PowerApps/apis/shared_teams</connectorid>
+      <iscustomizable>1</iscustomizable>
+      <promptingbehavior>0</promptingbehavior>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </connectionreference>
+  </connectionreferences>
+  <Languages>
+    <Language>1033</Language>
+  </Languages>
+</ImportExportXml>

@@ -1,0 +1,1258 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_excelonlinebusiness-1": {
+        "api": {
+          "name": "shared_excelonlinebusiness"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedexcelonlinebusiness_b8622"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_sharepointonline-1": {
+        "api": {
+          "name": "shared_sharepointonline"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedsharepointonline_e2b4c"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedcommondataserviceforapps_4fbfd"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_teams-1": {
+        "api": {
+          "name": "shared_teams"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedteams_999cf"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "metadata": {
+        "defaultToEmbeddedConnections": true
+      },
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "type": "Request",
+          "kind": "Skills",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "description": "PropertyCode",
+                  "title": "Text",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_1": {
+                  "description": "ReviewPeriod",
+                  "title": "Text",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_2": {
+                  "description": "RequesterEmail",
+                  "title": "Text",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "required": [
+                "text",
+                "text_1",
+                "text_2"
+              ]
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "b8f61c18-7224-4f8a-9c5f-72fbce5df764"
+          }
+        }
+      },
+      "actions": {
+        "Respond_to_the_agent": {
+          "type": "Response",
+          "kind": "Skills",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "title": "Status",
+                  "description": "",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "note": {
+                  "title": "Note",
+                  "description": "",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "additionalProperties": {}
+            },
+            "statusCode": 200,
+            "body": {
+              "status": "@{outputs('Compose_-_Required_Files_Status')} ",
+              "note": "Review started. You'll get a Teams message with the results in a few minutes, and the report will be saved to the property's Internal Review > Review Results folder."
+            }
+          },
+          "runAfter": {
+            "Compose_-_Required_Files_Status": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "81c94f73-dd52-465c-ad3b-a4686da63cc3"
+          }
+        },
+        "List_rows_present_in_a_table": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "source": "groups/bd057a45-76a1-44ea-945c-11749c3f3f7b",
+              "drive": "b!OMin-CUJEU-HgeIiOuTynIC1YjKV-y9Ns_m_L0epy15tRbHkzruMQI5bSmBGP4qk",
+              "file": "01D43TRL7WIYVVQSAEPFDYLO6K6QBXZVZY",
+              "table": "{00000000-000C-0000-FFFF-FFFF02000000}",
+              "$filter": "YardiCode eq '@{trim(triggerBody()?['text'])}'"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+              "operationId": "GetItems",
+              "connectionName": "shared_excelonlinebusiness-1"
+            }
+          },
+          "runAfter": {},
+          "metadata": {
+            "01D43TRLZUPBBYXSH74ZHK4KOWBQQUV7JH": "/General/Property_Site_Directory_Test.xlsx",
+            "01D43TRL7WIYVVQSAEPFDYLO6K6QBXZVZY": "/General/Active_Property_Site_Tracker_for_Internal_Review.xlsx",
+            "tableId": "{00000000-000C-0000-FFFF-FFFF02000000}"
+          }
+        },
+        "Get_files_(properties_only)": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "dataset": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+              "table": "Documents",
+              "folderPath": "@outputs('Internal_Review_Folder_Path')",
+              "viewScopeOption": "RecursiveAll"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "operationId": "GetFileItems",
+              "connectionName": "shared_sharepointonline-1"
+            }
+          },
+          "runAfter": {
+            "Internal_Review_Folder_Path": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Compose_-_BSSS_Result": {
+          "type": "Compose",
+          "inputs": "@if(\r\ngreater(length(body('Filter_BSSS')),0),\r\n'BSSS FOUND',\r\n'BSSS MISSING'\r\n)",
+          "runAfter": {
+            "Filter_BSSS": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Compose_1": {
+          "type": "Compose",
+          "inputs": "@length(coalesce(outputs('Get_files_(properties_only)')?['body/value'],json('[]')))",
+          "runAfter": {
+            "Get_files_(properties_only)": [
+              "Succeeded",
+              "Failed"
+            ]
+          }
+        },
+        "Filter_BSSS": {
+          "type": "Query",
+          "inputs": {
+            "from": "@coalesce(outputs('Get_files_(properties_only)')?['body/value'],json('[]'))",
+            "where": "@or(\r\ncontains(toLower(item()?['{FilenameWithExtension}']), 'bsss'),\r\ncontains(toLower(item()?['{FilenameWithExtension}']), 'bs support'),\r\ncontains(toLower(item()?['{FilenameWithExtension}']), 'balance sheet support')\r\n)"
+          },
+          "runAfter": {
+            "Compose_1": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Filter_TB": {
+          "type": "Query",
+          "inputs": {
+            "from": "@coalesce(outputs('Get_files_(properties_only)')?['body/value'],json('[]'))",
+            "where": "@or(\ncontains(toLower(item()?['{FilenameWithExtension}']), 'trial balance'),\ncontains(toLower(item()?['{FilenameWithExtension}']), 'trial_balance')\n)"
+          },
+          "runAfter": {
+            "Compose_-_BSSS_Result": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Compose_-_TB_Result": {
+          "type": "Compose",
+          "inputs": "@if(\r\ngreater(length(body('Filter_TB')),0),\r\n'TB FOUND',\r\n'TB MISSING'\r\n)",
+          "runAfter": {
+            "Filter_TB": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Compose_-_Required_Files_Status": {
+          "type": "Compose",
+          "inputs": "@concat(\r\n'Required File Validation',\r\ndecodeUriComponent('%0D%0A'),\r\n'Folder: ',outputs('Internal_Review_Folder_Path'),\r\ndecodeUriComponent('%0D%0A'),\r\nif(equals(actions('Get_files_(properties_only)')?['status'],'Failed'),'FOLDER NOT FOUND (0 files)',concat(outputs('Compose_1'),' files')),\r\ndecodeUriComponent('%0D%0A'),\r\ndecodeUriComponent('%0D%0A'),\r\noutputs('Compose_-_BSSS_Result'),\r\ndecodeUriComponent('%0D%0A'),\r\noutputs('Compose_-_TB_Result'),\r\ndecodeUriComponent('%0D%0A'),\r\noutputs('Compose_-_T12_Result'),\r\ndecodeUriComponent('%0D%0A'),\r\noutputs('Compose_-_BC_Result'),\r\ndecodeUriComponent('%0D%0A'),\r\noutputs('Compose_-_BS_Result'),\r\ndecodeUriComponent('%0D%0A'),\r\noutputs('Compose_-_GL_Result'),\r\ndecodeUriComponent('%0D%0A'),\r\noutputs('Compose_-_PM_Fee_Result'),\r\ndecodeUriComponent('%0D%0A'),\r\noutputs('Compose_-_Mortgage_Result'),\r\ndecodeUriComponent('%0D%0A'),\r\noutputs('Compose_-_Bank_Rec_Result'),\r\ndecodeUriComponent('%0D%0A'),\r\nif(\r\nand(\r\ncontains(outputs('Compose_-_BSSS_Result'),'FOUND'),\r\ncontains(outputs('Compose_-_TB_Result'),'FOUND'),\r\ncontains(outputs('Compose_-_T12_Result'),'FOUND'),contains(outputs('Compose_-_BS_Result'),'FOUND'),contains(outputs('Compose_-_GL_Result'),'FOUND'),\r\ncontains(outputs('Compose_-_BC_Result'),'FOUND')\r\n),\r\n'STATUS: REQUIRED FILES COMPLETE',\r\n'STATUS: REQUIRED FILES MISSING'\r\n)\r\n)",
+          "runAfter": {
+            "Compose_-_Bank_Rec_Result": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Filter_T12": {
+          "type": "Query",
+          "inputs": {
+            "from": "@coalesce(outputs('Get_files_(properties_only)')?['body/value'],json('[]'))",
+            "where": "@or(\ncontains(toLower(item()?['{FilenameWithExtension}']), '12_month_statement'),\ncontains(toLower(item()?['{FilenameWithExtension}']), '12 month statement')\n)"
+          },
+          "runAfter": {
+            "Compose_-_TB_Result": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Compose_-_T12_Result": {
+          "type": "Compose",
+          "inputs": "@if(\r\ngreater(length(body('Filter_T12')),0),\r\n'T12 FOUND',\r\n'T12 MISSING'\r\n)",
+          "runAfter": {
+            "Filter_T12": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Filter_BC": {
+          "type": "Query",
+          "inputs": {
+            "from": "@coalesce(outputs('Get_files_(properties_only)')?['body/value'],json('[]'))",
+            "where": "@or(\r\ncontains(toLower(item()?['{FilenameWithExtension}']), 'budget_comparison'),\r\ncontains(toLower(item()?['{FilenameWithExtension}']), 'budget comparison')\r\n)"
+          },
+          "runAfter": {
+            "Compose_-_T12_Result": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Compose_-_BC_Result": {
+          "type": "Compose",
+          "inputs": "@if(\r\ngreater(length(body('Filter_BC')),0),\r\n'BC FOUND',\r\n'BC MISSING'\r\n)",
+          "runAfter": {
+            "Filter_BC": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Compose_-_Mortgage_Result": {
+          "type": "Compose",
+          "inputs": "@if(\r\ngreater(length(body('Filter_Mortgage')),0),\r\n'MORTGAGE FOUND',\r\n'MORTGAGE MISSING'\r\n)",
+          "runAfter": {
+            "Filter_Mortgage": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Filter_BANKREC": {
+          "type": "Query",
+          "inputs": {
+            "from": "@coalesce(outputs('Get_files_(properties_only)')?['body/value'],json('[]'))",
+            "where": "@or(\r\ncontains(toLower(item()?['{FilenameWithExtension}']), 'bank rec'),\r\ncontains(toLower(item()?['{FilenameWithExtension}']), 'bank reconciliation')\r\n)"
+          },
+          "runAfter": {
+            "Compose_-_Mortgage_Result": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Compose_-_Bank_Rec_Result": {
+          "type": "Compose",
+          "inputs": "@if(\r\ngreater(length(body('Filter_BANKREC')),0),\r\n'BANK REC FOUND',\r\n'BANK REC MISSING'\r\n)",
+          "runAfter": {
+            "Filter_BANKREC": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Filter_Mortgage": {
+          "type": "Query",
+          "inputs": {
+            "from": "@coalesce(outputs('Get_files_(properties_only)')?['body/value'],json('[]'))",
+            "where": "@contains(\r\ntoLower(item()?['{FilenameWithExtension}']),\r\n'mortgage'\r\n)"
+          },
+          "runAfter": {
+            "Compose_-_PM_Fee_Result": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Internal_Review_Folder_Path": {
+          "type": "Compose",
+          "inputs": "@concat('Shared Documents/Accounting/',if(greater(indexOf(trim(triggerBody()?['text_1']),'-'),2),substring(trim(triggerBody()?['text_1']),0,4),substring(trim(triggerBody()?['text_1']),3,4)),'/',if(greater(indexOf(trim(triggerBody()?['text_1']),'-'),2),substring(trim(triggerBody()?['text_1']),5,2),substring(trim(triggerBody()?['text_1']),0,2)),'-',createArray('January','February','March','April','May','June','July','August','September','October','November','December')[sub(int(if(greater(indexOf(trim(triggerBody()?['text_1']),'-'),2),substring(trim(triggerBody()?['text_1']),5,2),substring(trim(triggerBody()?['text_1']),0,2))),1)],'/Internal Review')",
+          "runAfter": {
+            "List_rows_present_in_a_table": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Required_Files_Complete": {
+          "type": "If",
+          "expression": {
+            "and": [
+              {
+                "contains": [
+                  "@outputs('Compose_-_Required_Files_Status')",
+                  "REQUIRED FILES COMPLETE"
+                ]
+              }
+            ]
+          },
+          "actions": {
+            "Get_Drive_Id": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "dataset": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                  "parameters/method": "GET",
+                  "parameters/uri": "_api/v2.0/drive"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                  "operationId": "HttpRequest",
+                  "connectionName": "shared_sharepointonline-1"
+                }
+              }
+            },
+            "Sources_JSON": {
+              "type": "Compose",
+              "inputs": "@string(createArray(\r\njson(concat('{\"type\":\"BSSS\",\"file\":\"',replace(coalesce(first(body('Filter_BSSS'))?['{FilenameWithExtension}'],''),'\"',''),'\",\"status\":\"',if(equals(length(body('Filter_BSSS')),0),'Missing',if(equals(length(body('Filter_BSSS')),1),'Found','Multiple Versions')),'\"}')),\r\njson(concat('{\"type\":\"GL\",\"file\":\"',replace(coalesce(first(body('Filter_GL'))?['{FilenameWithExtension}'],''),'\"',''),'\",\"status\":\"',if(equals(length(body('Filter_GL')),0),'Missing',if(equals(length(body('Filter_GL')),1),'Found','Multiple Versions')),'\"}')),\r\njson(concat('{\"type\":\"TB\",\"file\":\"',replace(coalesce(first(body('Filter_TB'))?['{FilenameWithExtension}'],''),'\"',''),'\",\"status\":\"',if(equals(length(body('Filter_TB')),0),'Missing',if(equals(length(body('Filter_TB')),1),'Found','Multiple Versions')),'\"}')),\r\njson(concat('{\"type\":\"T12\",\"file\":\"',replace(coalesce(first(body('Filter_T12'))?['{FilenameWithExtension}'],''),'\"',''),'\",\"status\":\"',if(equals(length(body('Filter_T12')),0),'Missing',if(equals(length(body('Filter_T12')),1),'Found','Multiple Versions')),'\"}')),\r\njson(concat('{\"type\":\"BC\",\"file\":\"',replace(coalesce(first(body('Filter_BC'))?['{FilenameWithExtension}'],''),'\"',''),'\",\"status\":\"',if(equals(length(body('Filter_BC')),0),'Missing',if(equals(length(body('Filter_BC')),1),'Found','Multiple Versions')),'\"}')),json(concat('{\"type\":\"PM Fee\",\"file\":\"',replace(coalesce(first(body('Filter_PM_Fee'))?['{FilenameWithExtension}'],''),'\"',''),'\",\"status\":\"',if(equals(length(body('Filter_PM_Fee')),0),'Missing',if(equals(length(body('Filter_PM_Fee')),1),'Found','Multiple Versions')),'\"}')),\r\njson(concat('{\"type\":\"BANKREC\",\"file\":\"',replace(coalesce(first(body('Filter_BANKREC'))?['{FilenameWithExtension}'],''),'\"',''),'\",\"status\":\"',if(equals(length(body('Filter_BANKREC')),0),'Missing',if(equals(length(body('Filter_BANKREC')),1),'Found','Multiple Versions')),'\"}')),\r\njson(concat('{\"type\":\"MORTGAGE\",\"file\":\"',replace(coalesce(first(body('Filter_MORTGAGE'))?['{FilenameWithExtension}'],''),'\"',''),'\",\"status\":\"',if(equals(length(body('Filter_MORTGAGE')),0),'Missing',if(equals(length(body('Filter_MORTGAGE')),1),'Found','Multiple Versions')),'\"}'))\r\n))\r\n",
+              "runAfter": {
+                "Get_Drive_Id": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Have_TB": {
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@length(body('Filter_TB'))",
+                      1
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Read_TB": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "source": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                      "drive": "@body('Get_Drive_Id')?['id']",
+                      "file": "@first(body('Filter_TB'))?['{Identifier}']",
+                      "scriptSource": "groups/bd057a45-76a1-44ea-945c-11749c3f3f7b",
+                      "scriptDrive": "b!OMin-CUJEU-HgeIiOuTynIC1YjKV-y9Ns_m_L0epy15tRbHkzruMQI5bSmBGP4qk",
+                      "scriptId": "01D43TRL5ZSERJJV3MCJGZXY2UY6FCVOE7"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                      "operationId": "RunScriptProdV2",
+                      "connectionName": "shared_excelonlinebusiness-1"
+                    }
+                  },
+                  "metadata": {
+                    "01D43TRL5ZSERJJV3MCJGZXY2UY6FCVOE7": "/General/01_ReadTrialBalance.osts",
+                    "tableId": null
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "runAfter": {
+                "Sources_JSON": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Have_BSSS": {
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@length(body('Filter_BSSS'))",
+                      1
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Read_BSSS": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "source": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                      "drive": "@body('Get_Drive_Id')?['id']",
+                      "file": "@first(body('Filter_BSSS'))?['{Identifier}']",
+                      "scriptSource": "groups/bd057a45-76a1-44ea-945c-11749c3f3f7b",
+                      "scriptDrive": "b!OMin-CUJEU-HgeIiOuTynIC1YjKV-y9Ns_m_L0epy15tRbHkzruMQI5bSmBGP4qk",
+                      "scriptId": "01D43TRLYUACZZ7BLTAVBZJST6D63ENDDT"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                      "operationId": "RunScriptProdV2",
+                      "connectionName": "shared_excelonlinebusiness-1"
+                    }
+                  },
+                  "metadata": {
+                    "01D43TRL5ZSERJJV3MCJGZXY2UY6FCVOE7": "/General/01_ReadTrialBalance.osts",
+                    "01D43TRLYUACZZ7BLTAVBZJST6D63ENDDT": "/General/02_ReadBsss.osts",
+                    "tableId": null
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "runAfter": {
+                "Have_TB": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Have_T12": {
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@length(body('Filter_T12'))",
+                      1
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Read_T12": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "source": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                      "drive": "@body('Get_Drive_Id')?['id']",
+                      "file": "@first(body('Filter_T12'))?['{Identifier}']",
+                      "scriptSource": "groups/bd057a45-76a1-44ea-945c-11749c3f3f7b",
+                      "scriptDrive": "b!OMin-CUJEU-HgeIiOuTynIC1YjKV-y9Ns_m_L0epy15tRbHkzruMQI5bSmBGP4qk",
+                      "scriptId": "01D43TRL3H7TCOQG2XPRFIAWODTPAADH5G"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                      "operationId": "RunScriptProdV2",
+                      "connectionName": "shared_excelonlinebusiness-1"
+                    }
+                  },
+                  "metadata": {
+                    "01D43TRL5ZSERJJV3MCJGZXY2UY6FCVOE7": "/General/01_ReadTrialBalance.osts",
+                    "01D43TRLYUACZZ7BLTAVBZJST6D63ENDDT": "/General/02_ReadBsss.osts",
+                    "01D43TRL3H7TCOQG2XPRFIAWODTPAADH5G": "/General/03_ReadYardiFinancial.osts",
+                    "tableId": null
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "runAfter": {
+                "Have_BSSS": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Have_BC": {
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@length(body('Filter_BC'))",
+                      1
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Read_BC": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "source": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                      "drive": "@body('Get_Drive_Id')?['id']",
+                      "file": "@first(body('Filter_BC'))?['{Identifier}']",
+                      "scriptSource": "groups/bd057a45-76a1-44ea-945c-11749c3f3f7b",
+                      "scriptDrive": "b!OMin-CUJEU-HgeIiOuTynIC1YjKV-y9Ns_m_L0epy15tRbHkzruMQI5bSmBGP4qk",
+                      "scriptId": "01D43TRL3H7TCOQG2XPRFIAWODTPAADH5G"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                      "operationId": "RunScriptProdV2",
+                      "connectionName": "shared_excelonlinebusiness-1"
+                    }
+                  },
+                  "metadata": {
+                    "01D43TRL5ZSERJJV3MCJGZXY2UY6FCVOE7": "/General/01_ReadTrialBalance.osts",
+                    "01D43TRLYUACZZ7BLTAVBZJST6D63ENDDT": "/General/02_ReadBsss.osts",
+                    "01D43TRL3H7TCOQG2XPRFIAWODTPAADH5G": "/General/03_ReadYardiFinancial.osts",
+                    "tableId": null
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "runAfter": {
+                "Have_T12": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Have_BS": {
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@length(body('Filter_BS'))",
+                      1
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Read_BS": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "source": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                      "drive": "@body('Get_Drive_Id')?['id']",
+                      "file": "@first(body('Filter_BS'))?['{Identifier}']",
+                      "scriptSource": "groups/bd057a45-76a1-44ea-945c-11749c3f3f7b",
+                      "scriptDrive": "b!OMin-CUJEU-HgeIiOuTynIC1YjKV-y9Ns_m_L0epy15tRbHkzruMQI5bSmBGP4qk",
+                      "scriptId": "01D43TRL3H7TCOQG2XPRFIAWODTPAADH5G"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                      "operationId": "RunScriptProdV2",
+                      "connectionName": "shared_excelonlinebusiness-1"
+                    }
+                  },
+                  "metadata": {
+                    "01D43TRL5ZSERJJV3MCJGZXY2UY6FCVOE7": "/General/01_ReadTrialBalance.osts",
+                    "01D43TRLYUACZZ7BLTAVBZJST6D63ENDDT": "/General/02_ReadBsss.osts",
+                    "01D43TRL3H7TCOQG2XPRFIAWODTPAADH5G": "/General/03_ReadYardiFinancial.osts",
+                    "tableId": null
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "runAfter": {
+                "Have_PM_Fee": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Have_BANKREC": {
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "greater": [
+                      "@length(body('Filter_BANKREC'))",
+                      0
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Each_BankRec_PDF": {
+                  "type": "Foreach",
+                  "foreach": "@body('Filter_BANKREC')",
+                  "actions": {
+                    "Get_BankRec_PDF": {
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "parameters": {
+                          "dataset": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                          "id": "@items('Each_BankRec_PDF')?['{Identifier}']",
+                          "inferContentType": true
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                          "operationId": "GetFileContent",
+                          "connectionName": "shared_sharepointonline-1"
+                        }
+                      }
+                    },
+                    "Read_BankRec_PDF": {
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "parameters": {
+                          "recordId": "8e37b080-0613-4230-b246-4560cf8cde32",
+                          "item/requestv2/BankRecPDF/base64Encoded": "@base64(body('Get_BankRec_PDF'))"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "operationId": "aibuilderpredict_customprompt",
+                          "connectionName": "shared_commondataserviceforapps"
+                        }
+                      },
+                      "runAfter": {
+                        "Get_BankRec_PDF": [
+                          "SUCCEEDED"
+                        ]
+                      },
+                      "metadata": {
+                        "flowSystemMetadata": {
+                          "portalOperationId": "aibuilderpredict_customprompt",
+                          "portalOperationGroup": "aibuilder",
+                          "portalOperationApiDisplayNameOverride": "AI Builder",
+                          "portalOperationIconOverride": "https://content.powerapps.com/resource/makerx/static/pauto/images/designeroperations/aibuilderIcon2026.8e878397.png",
+                          "portalOperationBrandColorOverride": "#0A76C4",
+                          "portalOperationApiTierOverride": "Standard"
+                        }
+                      }
+                    },
+                    "Add_BankRec_Result": {
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "BankRecResults",
+                        "value": "@outputs('Read_BankRec_PDF')?['body']"
+                      },
+                      "runAfter": {
+                        "Read_BankRec_PDF": [
+                          "SUCCEEDED"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "runAfter": {
+                "Have_BS": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Have_MORTGAGE": {
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@length(body('Filter_MORTGAGE'))",
+                      1
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Get_Mortgage_PDF": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "dataset": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                      "id": "@first(body('Filter_MORTGAGE'))?['{Identifier}']",
+                      "inferContentType": true
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                      "operationId": "GetFileContent",
+                      "connectionName": "shared_sharepointonline-1"
+                    }
+                  }
+                },
+                "Read_Mortgage_PDF": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "recordId": "15e308bd-f978-470f-a5bc-64bb2e2ab8d3",
+                      "item/requestv2/MortgagePDF/base64Encoded": "@base64(body('Get_Mortgage_PDF'))"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "operationId": "aibuilderpredict_customprompt",
+                      "connectionName": "shared_commondataserviceforapps"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Mortgage_PDF": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "flowSystemMetadata": {
+                      "portalOperationId": "aibuilderpredict_customprompt",
+                      "portalOperationGroup": "aibuilder",
+                      "portalOperationApiDisplayNameOverride": "AI Builder",
+                      "portalOperationIconOverride": "https://content.powerapps.com/resource/makerx/static/pauto/images/designeroperations/aibuilderIcon2026.8e878397.png",
+                      "portalOperationBrandColorOverride": "#0A76C4",
+                      "portalOperationApiTierOverride": "Standard"
+                    }
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "runAfter": {
+                "Have_BANKREC": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Make_Results_Folder": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "dataset": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                  "table": "Documents",
+                  "parameters/path": "@concat(replace(outputs('Internal_Review_Folder_Path'),'Shared Documents/',''),'/Review Results')"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                  "operationId": "CreateNewFolder",
+                  "connectionName": "shared_sharepointonline-1"
+                }
+              },
+              "runAfter": {
+                "Have_MORTGAGE": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "List_Old_Reports": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "dataset": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                  "table": "Documents",
+                  "folderPath": "@concat(outputs('Internal_Review_Folder_Path'),'/Review Results')"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                  "operationId": "GetFileItems",
+                  "connectionName": "shared_sharepointonline-1"
+                }
+              },
+              "runAfter": {
+                "Make_Results_Folder": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Old_Reports_This_Period": {
+              "type": "Query",
+              "inputs": {
+                "from": "@outputs('List_Old_Reports')?['body/value']",
+                "where": "@startsWith(toLower(item()?['{FilenameWithExtension}']), toLower(concat(triggerBody()?['text'],'_')))"
+              },
+              "runAfter": {
+                "List_Old_Reports": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Review_Attempt": {
+              "type": "Compose",
+              "inputs": "@concat('R', add(length(body('Old_Reports_This_Period')), 1))",
+              "runAfter": {
+                "Old_Reports_This_Period": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Report_File_Name": {
+              "type": "Compose",
+              "inputs": "@concat(triggerBody()?['text'], '_', replace(triggerBody()?['text_1'],'-','.'), '_Internal_Review_', outputs('Review_Attempt'), '.xlsx')",
+              "runAfter": {
+                "Review_Attempt": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Get_Template": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "dataset": "https://greystar365.sharepoint.com/sites/AICreation",
+                  "id": "%252fShared%2bDocuments%252fGeneral%252fInternal_Review_Report_Template_v2_0%2b(1).xlsx",
+                  "inferContentType": true
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                  "operationId": "GetFileContent",
+                  "connectionName": "shared_sharepointonline-1"
+                }
+              },
+              "runAfter": {
+                "Report_File_Name": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "%252fShared%2bDocuments%252fGeneral%252fInternal_Review_Report_Template_v1_2.xlsx": "/Shared Documents/General/Internal_Review_Report_Template_v1_2.xlsx",
+                "%252fShared%2bDocuments%252fGeneral%252fInternal_Review_Report_Template_v2_0.xlsx": "/Shared Documents/General/Internal_Review_Report_Template_v2_0.xlsx",
+                "%252fShared%2bDocuments%252fGeneral%252fInternal_Review_Report_Template_v2_0%2b(1).xlsx": "/Shared Documents/General/Internal_Review_Report_Template_v2_0 (1).xlsx"
+              }
+            },
+            "Create_Report": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "dataset": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                  "folderPath": "@concat('/', outputs('Internal_Review_Folder_Path'), '/Review Results')",
+                  "name": "@outputs('Report_File_Name')",
+                  "body": "@body('Get_Template')"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                  "operationId": "CreateFile",
+                  "connectionName": "shared_sharepointonline-1"
+                }
+              },
+              "runAfter": {
+                "Get_Template": [
+                  "Succeeded"
+                ]
+              },
+              "runtimeConfiguration": {
+                "contentTransfer": {
+                  "transferMode": "Chunked"
+                }
+              }
+            },
+            "Delay": {
+              "type": "Wait",
+              "inputs": {
+                "interval": {
+                  "count": 15,
+                  "unit": "Second"
+                }
+              },
+              "runAfter": {
+                "Get_Report_Link": [
+                  "SUCCEEDED"
+                ]
+              }
+            },
+            "Run_Review": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "source": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                  "drive": "@body('Get_Drive_Id')?['id']",
+                  "file": "@outputs('Create_Report')?['body/Id']",
+                  "scriptSource": "groups/bd057a45-76a1-44ea-945c-11749c3f3f7b",
+                  "scriptDrive": "b!OMin-CUJEU-HgeIiOuTynIC1YjKV-y9Ns_m_L0epy15tRbHkzruMQI5bSmBGP4qk",
+                  "scriptId": "01D43TRL5VMQFMLJSD65CZWE5WRW6SGCFJ",
+                  "ScriptParameters/propertyCode": "@triggerBody()?['text']",
+                  "ScriptParameters/reviewPeriod": "@triggerBody()?['text_1']",
+                  "ScriptParameters/reviewAttempt": "@outputs('Review_Attempt')",
+                  "ScriptParameters/submissionType": "@if(equals(outputs('Review_Attempt'),'R1'),'Initial','Re-review')",
+                  "ScriptParameters/reportFileName": "@outputs('Report_File_Name')",
+                  "ScriptParameters/sourcesJson": "@outputs('Sources_JSON')",
+                  "ScriptParameters/tbJson": "@if(empty(outputs('Read_TB')?['body/result']),'',string(outputs('Read_TB')?['body/result']))",
+                  "ScriptParameters/bsssJson": "@if(empty(outputs('Read_BSSS')?['body/result']),'',string(outputs('Read_BSSS')?['body/result']))",
+                  "ScriptParameters/t12Json": "@if(empty(outputs('Read_T12')?['body/result']),'',string(outputs('Read_T12')?['body/result']))",
+                  "ScriptParameters/bcJson": "@if(empty(outputs('Read_BC')?['body/result']),'',string(outputs('Read_BC')?['body/result']))",
+                  "ScriptParameters/bsJson": "@if(empty(outputs('Read_BS')?['body/result']),'',string(outputs('Read_BS')?['body/result']))",
+                  "ScriptParameters/glJson": "@if(empty(outputs('Read_GL')?['body/result']),'',string(outputs('Read_GL')?['body/result']))",
+                  "ScriptParameters/bankRecJson": "@if(empty(variables('BankRecResults')),'',string(variables('BankRecResults')))",
+                  "ScriptParameters/mortgageJson": "@if(empty(outputs('Read_Mortgage_PDF')?['body']),'',string(outputs('Read_Mortgage_PDF')?['body']))",
+                  "ScriptParameters/ameJson": "[]",
+                  "ScriptParameters/pmFeeJson": "@if(empty(outputs('Read_PM_Fee')?['body/result']),'',string(outputs('Read_PM_Fee')?['body/result']))"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                  "operationId": "RunScriptProdV2",
+                  "connectionName": "shared_excelonlinebusiness-1"
+                }
+              },
+              "runAfter": {
+                "Delay": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "01D43TRL5VMQFMLJSD65CZWE5WRW6SGCFJ": "/General/04_RunInternalReview.osts",
+                "tableId": null
+              }
+            },
+            "Have_GL": {
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@length(body('Filter_BC'))",
+                      1
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Read_GL": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "source": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                      "drive": "@body('Get_Drive_Id')?['id']",
+                      "file": "@first(body('Filter_GL'))?['{Identifier}']",
+                      "scriptSource": "groups/bd057a45-76a1-44ea-945c-11749c3f3f7b",
+                      "scriptDrive": "b!OMin-CUJEU-HgeIiOuTynIC1YjKV-y9Ns_m_L0epy15tRbHkzruMQI5bSmBGP4qk",
+                      "scriptId": "01D43TRL4XHXPUX6LSF5CLWHNOYTH2IK77"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                      "operationId": "RunScriptProdV2",
+                      "connectionName": "shared_excelonlinebusiness-1"
+                    }
+                  },
+                  "metadata": {
+                    "01D43TRL5ZSERJJV3MCJGZXY2UY6FCVOE7": "/General/01_ReadTrialBalance.osts",
+                    "01D43TRLYUACZZ7BLTAVBZJST6D63ENDDT": "/General/02_ReadBsss.osts",
+                    "01D43TRL3H7TCOQG2XPRFIAWODTPAADH5G": "/General/03_ReadYardiFinancial.osts",
+                    "01D43TRL4XHXPUX6LSF5CLWHNOYTH2IK77": "/General/05_ReadGeneralLedger.osts",
+                    "tableId": null
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "runAfter": {
+                "Have_BC": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Have_PM_Fee": {
+              "type": "If",
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@length(body('Filter_PM_Fee'))",
+                      1
+                    ]
+                  }
+                ]
+              },
+              "actions": {
+                "Read_PM_Fee": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "source": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                      "drive": "@body('Get_Drive_Id')?['id']",
+                      "file": "@first(body('Filter_PM_Fee'))?['{Identifier}']",
+                      "scriptSource": "groups/bd057a45-76a1-44ea-945c-11749c3f3f7b",
+                      "scriptDrive": "b!OMin-CUJEU-HgeIiOuTynIC1YjKV-y9Ns_m_L0epy15tRbHkzruMQI5bSmBGP4qk",
+                      "scriptId": "01D43TRL7H6G25BAUWCZBZS43AWOJAKIM3"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                      "operationId": "RunScriptProdV2",
+                      "connectionName": "shared_excelonlinebusiness-1"
+                    }
+                  },
+                  "metadata": {
+                    "01D43TRL5ZSERJJV3MCJGZXY2UY6FCVOE7": "/General/01_ReadTrialBalance.osts",
+                    "01D43TRLYUACZZ7BLTAVBZJST6D63ENDDT": "/General/02_ReadBsss.osts",
+                    "01D43TRL3H7TCOQG2XPRFIAWODTPAADH5G": "/General/03_ReadYardiFinancial.osts",
+                    "01D43TRL7H6G25BAUWCZBZS43AWOJAKIM3": "/General/06_ReadPMFee.osts",
+                    "tableId": null
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "runAfter": {
+                "Have_GL": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Get_file_properties": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "dataset": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                  "table": "Documents",
+                  "id": "@body('Create_Report')?['ItemId']"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                  "operationId": "GetFileItem",
+                  "connectionName": "shared_sharepointonline-1"
+                }
+              },
+              "runAfter": {
+                "Build_Results_Card": [
+                  "SUCCEEDED"
+                ]
+              }
+            },
+            "Build_Results_Card": {
+              "type": "Compose",
+              "inputs": {
+                "type": "AdaptiveCard",
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                "version": "1.5",
+                "body": [
+                  {
+                    "type": "ColumnSet",
+                    "columns": [
+                      {
+                        "type": "Column",
+                        "width": "auto",
+                        "verticalContentAlignment": "Center",
+                        "items": [
+                          {
+                            "type": "Image",
+                            "url": "data:image/gif;base64,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",
+                            "width": "76px",
+                            "height": "76px",
+                            "altText": "Otter holding an approved document"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "Column",
+                        "width": "stretch",
+                        "verticalContentAlignment": "Center",
+                        "items": [
+                          {
+                            "type": "TextBlock",
+                            "text": "Internal Review complete",
+                            "wrap": true,
+                            "weight": "Bolder",
+                            "size": "Medium"
+                          },
+                          {
+                            "type": "TextBlock",
+                            "text": "@{outputs('Run_Review')?['body/result/overallStatus']}",
+                            "wrap": true,
+                            "weight": "Bolder",
+                            "spacing": "Small",
+                            "color": "@{if(greater(outputs('Run_Review')?['body/result/exceptions'],0),'Attention',if(greater(add(outputs('Run_Review')?['body/result/warnings'],outputs('Run_Review')?['body/result/monitor']),0),'Warning','Good'))}"
+                          },
+                          {
+                            "type": "TextBlock",
+                            "text": "@{outputs('Run_Review')?['body/result/summary']}",
+                            "wrap": true,
+                            "spacing": "Small"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "Action.OpenUrl",
+                    "title": "Open the report",
+                    "url": "@{body('Get_Report_Link')?['{Link}']}"
+                  }
+                ]
+              },
+              "runAfter": {
+                "Run_Review": [
+                  "SUCCEEDED"
+                ]
+              }
+            },
+            "Get_Report_Link": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "dataset": "@first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']",
+                  "table": "Documents",
+                  "id": "@outputs('Create_Report')?['body/ItemId']"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                  "operationId": "GetFileItem",
+                  "connectionName": "shared_sharepointonline-1"
+                }
+              },
+              "runAfter": {
+                "Create_Report": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Post_card_in_a_chat_or_channel": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "poster": "Flow bot",
+                  "location": "Chat with Flow bot",
+                  "body/recipient": "@triggerBody()?['text_2']",
+                  "body/messageBody": "@string(outputs('Build_Results_Card'))"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams",
+                  "operationId": "PostCardToConversation",
+                  "connectionName": "shared_teams-1"
+                }
+              },
+              "runAfter": {
+                "Get_file_properties": [
+                  "SUCCEEDED"
+                ]
+              }
+            }
+          },
+          "else": {
+            "actions": {}
+          },
+          "runAfter": {
+            "Init_BankRec_Results": [
+              "SUCCEEDED"
+            ]
+          }
+        },
+        "Filter_BS": {
+          "type": "Query",
+          "inputs": {
+            "from": "@coalesce(outputs('Get_files_(properties_only)')?['body/value'],json('[]'))",
+            "where": "@and(or(contains(toLower(item()?['{FilenameWithExtension}']),'balance_sheet'),contains(toLower(item()?['{FilenameWithExtension}']),'balance sheet')),not(contains(toLower(item()?['{FilenameWithExtension}']),'support')))"
+          },
+          "runAfter": {
+            "Compose_-_BC_Result": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Compose_-_BS_Result": {
+          "type": "Compose",
+          "inputs": "@if(\r\ngreater(length(body('Filter_BS')),0),\r\n'BS FOUND',\r\n'BS MISSING'\r\n)",
+          "runAfter": {
+            "Filter_BS": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Filter_GL": {
+          "type": "Query",
+          "inputs": {
+            "from": "@coalesce(outputs('Get_files_(properties_only)')?['body/value'],json('[]'))",
+            "where": "@or(\r\ncontains(toLower(item()?['{FilenameWithExtension}']), 'general_ledger'),\r\ncontains(toLower(item()?['{FilenameWithExtension}']), 'general ledger')\r\n)"
+          },
+          "runAfter": {
+            "Compose_-_BS_Result": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Compose_-_GL_Result": {
+          "type": "Compose",
+          "inputs": "@if(\r\ngreater(length(body('Filter_GL')),0),\r\n'GL FOUND',\r\n'GL MISSING'\r\n)",
+          "runAfter": {
+            "Filter_GL": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Filter_PM_Fee": {
+          "type": "Query",
+          "inputs": {
+            "from": "@coalesce(outputs('Get_files_(properties_only)')?['body/value'],json('[]'))",
+            "where": "@or(contains(replace(replace(replace(toLower(item()?['{FilenameWithExtension}']),' ',''),'_',''),'-',''),'pmfee'),contains(replace(replace(replace(toLower(item()?['{FilenameWithExtension}']),' ',''),'_',''),'-',''),'managementfee'))"
+          },
+          "runAfter": {
+            "Compose_-_GL_Result": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Compose_-_PM_Fee_Result": {
+          "type": "Compose",
+          "inputs": "@if(\r\ngreater(length(body('Filter_PM_Fee')),0),\r\n'PM Fee FOUND',\r\n'PM Fee MISSING'\r\n)",
+          "runAfter": {
+            "Filter_PM_Fee": [
+              "Succeeded"
+            ]
+          }
+        },
+        "Init_BankRec_Results": {
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "BankRecResults",
+                "type": "array",
+                "value": []
+              }
+            ]
+          },
+          "runAfter": {
+            "Respond_to_the_agent": [
+              "Succeeded"
+            ]
+          }
+        }
+      },
+      "outputs": {}
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}
