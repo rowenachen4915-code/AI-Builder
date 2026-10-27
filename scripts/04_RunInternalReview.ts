@@ -63,7 +63,13 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
   // client-owned Yardi. The first code is ours and names everything; a file carrying any of the codes is the right property.
   const codes = propertyCode.split(/[,;|]/).map(c => c.trim().toLowerCase()).filter(c => c !== "");
   const code = codes.length > 0 ? codes[0] : "", isOurs = (c: string | undefined) => c !== undefined && codes.indexOf(String(c).trim().toLowerCase()) >= 0;
-  const period = reviewPeriod.trim(), attempt = reviewAttempt.trim() === "" ? "R1" : reviewAttempt.trim();
+  // reviewPeriod may carry a second period after a comma ("09-2026,08-2026") when the manager, asked by the agent, accepted
+  // files that turned out to be for a different month. The first period names the report and the keys; the accounting
+  // (ageing, posting period, trailing months) runs on the period the files actually cover.
+  const periods = reviewPeriod.split(/[,;|]/).map(x => x.trim()).filter(x => x !== "");
+  const period = periods.length > 0 ? periods[0] : "", acctPeriod = periods.length > 1 ? periods[1] : period;
+  const isOurPeriod = (x: string | undefined) => x !== undefined && periods.indexOf(String(x).trim()) >= 0;
+  const attempt = reviewAttempt.trim() === "" ? "R1" : reviewAttempt.trim();
   const rules = pick(rulesetJson) !== "" ? JSON.parse(pick(rulesetJson)) as RuleSet : defaultRuleset();
   const all: Finding[] = [];
   const EX = "Exception", WA = "Warning", MO = "Reviewed / Monitor", PA = "Pass";
@@ -73,7 +79,7 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
       ruleId, findingType: status === PA ? "N/A" : status === MO ? "Reviewed / Monitor" : "New", propertyCode: code, reviewPeriod: period, category, item, test, status,
       source1: s1, source2: s2, sourceValue: fmt(v1), comparisonValue: fmt(v2), difference: fmt(diff), finding, requiredAction: action });
   };
-  const periodEnd = endOfPeriod(period);
+  const periodEnd = endOfPeriod(acctPeriod);
 
   // ---------------------------------------------------------------- read inputs (a bad or blank input never crashes the run)
   // Each reader's result is recognised by a list it always carries, even when it arrives wrapped in the flow step's output.
@@ -112,12 +118,20 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
     if (status === "Missing" && required) add("SRC-01", "Source Validation", label, "Required source is in the Internal Review folder", EX, "Internal Review folder", "", "Missing", "Found", "", `${label} is required and was not found.`, `Save the ${label} in the Internal Review folder and re-run.`);
     else if (status === "Multiple Versions") add("SRC-01", "Source Validation", label, "One version of each source", EX, "Internal Review folder", "", "Multiple", "1", "", `More than one ${label} was found; the review cannot choose for you.`, "Keep only the final version in the folder (move drafts to an Archive subfolder).");
     else if (provided && (propOk === false || perOk === false)) add("SRC-02", "Source Validation", label, "File is for the requested property and period (read from inside the file)", EX, label, "Review request", `${prop ?? ""} ${per ?? ""}`.trim(), `${code} ${period}`, "", `${label} is for a different property or period.`, `Replace with the ${label} for ${code} ${period}.`);
-    else if (provided) add("SRC-02", "Source Validation", label, "File is for the requested property and period", PA, label, "Review request", `${prop ?? ""} ${per ?? ""}`.trim(), `${code} ${period}`, "", propOk === undefined ? "Found. Property and period are not machine-checked for this file type." : prop && prop !== code ? `Correct property and period (the file uses the client's Yardi code ${prop}, mapped to ${code} in the site tracker).` : "Correct property and period.", "");
+    else if (provided) add("SRC-02", "Source Validation", label, "File is for the requested property and period", PA, label, "Review request", `${prop ?? ""} ${per ?? ""}`.trim(), `${code} ${period}`, "", propOk === undefined ? "Found. Property and period are not machine-checked for this file type." : prop && prop !== code ? `Correct property and period (the file uses the client's Yardi code ${prop}, accepted for ${code}).` : per && per !== period ? `Correct property; the file is for ${per}, accepted by the manager as the ${period} review.` : "Correct property and period.", "");
     return row;
   };
   const okP = (r: { ok: boolean; propertyCode: string } | undefined) => r ? r.ok && isOurs(r.propertyCode) : undefined;
-  const okM = (r: { ok: boolean; period: string } | undefined) => r ? r.ok && r.period === period : undefined;
+  const okM = (r: { ok: boolean; period: string } | undefined) => r ? r.ok && isOurPeriod(r.period) : undefined;
   const glProvided = sources.some(x => x.type.toUpperCase() === "GL" && x.status === "Found");
+  // SRC-04: a review that only ran because the manager accepted a different code or period says so, visibly, with who and when.
+  if (codes.length > 1 || periods.length > 1) {
+    const conf = sources.filter(x => x.type.toUpperCase() === "CONFIRMATION" && x.status === "Accepted")[0];
+    add("SRC-04", "Source Validation", "Manager confirmation", "Files identified as a different property or period were accepted by the reviewing manager", MO,
+      "Review request", "Files", `${code} ${period}`, `${codes.length > 1 ? codes.slice(1).join("/") : code} ${acctPeriod}`, "",
+      `The files are coded ${codes.length > 1 ? codes.slice(1).join("/") : code} for ${acctPeriod} and were accepted as the ${code} ${period} review${conf ? ` (${conf.file})` : " (confirmation details were not supplied by the flow)"}.`,
+      "No action if this was intended. If not, move the files to the right property and period folder and run the review again.");
+  }
   const srcRows = [
     src("BSSS", "Balance Sheet Support Schedule", true, !!bs, okP(bs), bs?.propertyCode, okM(bs), bs?.period, bs ? `Prepared by ${bs.preparedBy}` : ""),
     src("TB", "Trial Balance", true, !!tb, okP(tb), tb?.propertyCode, okM(tb), tb?.period, tb ? `Book: ${tb.book}` : ""),
@@ -215,7 +229,7 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
       let tieOk = false;
       if (!t) add("CASH-01", "Cash", label, T1, EX, "Bank Rec", "Trial Balance", b.glBalance, "no match", "", "No TB cash account matches this reconciliation.", "Confirm the reconciliation is for this property and period.");
       else { const d = r2(b.glBalance - t.ending); tieOk = d === 0 && r2(b.difference) === 0; add("CASH-01", "Cash", `${t.account} ${t.name}`, T1, tieOk ? PA : EX, `Bank Rec ${label}`, "Trial Balance", b.glBalance, r2(t.ending), d, tieOk ? "Bank rec ties to the TB with no unreconciled difference." : `Bank rec does not tie (unreconciled difference ${fmt(b.difference)}).`, tieOk ? "" : "Correct the reconciliation before release."); }
-      if (b.reconciliationDate.substring(0, 7) !== periodEnd.substring(0, 7)) add("CASH-05", "Cash", label, "Reconciliation date falls in the review month", WA, "Bank Rec", "", b.reconciliationDate, period, "", "Reconciliation date is outside the review month.", "Confirm the correct month's reconciliation was saved.");
+      if (b.reconciliationDate.substring(0, 7) !== periodEnd.substring(0, 7)) add("CASH-05", "Cash", label, "Reconciliation date falls in the review month", WA, "Bank Rec", "", b.reconciliationDate, acctPeriod, "", "Reconciliation date is outside the review month.", "Confirm the correct month's reconciliation was saved.");
       // Every outstanding item is aged at period end: Monitor over 30 days, Warning over 60, Exception over 90.
       let oldest = -1, over30 = 0;
       const ageTest = (ruleId: string, kind: string, list: RecItem[]) => {
@@ -258,7 +272,7 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
     escTest(/tax/i, "Tax", tot(x => x.taxEscrowBalance)); escTest(/insur/i, "Insurance", tot(x => x.insuranceEscrowBalance)); escTest(/replac|reserve|rehab/i, "Replacement reserve", r2(tot(x => x.replacementReserveBalance) + tot(x => x.otherReserveBalance)));
     const acc = tb ? tb.rows.filter(r => r.account.indexOf(rules.accruedInterestPrefix) === 0) : [], accBal = r2(-acc.reduce((s, r) => s + r.ending, 0)), intDue = tot(x => x.interestDue);
     if (acc.length > 0) add("DEBT-03", "Mortgage", acc.map(r => r.account).join(", "), "Interest due on the next payment = accrued interest on the TB", intDue === accBal ? PA : WA, `Mortgage statement ${who}`, "Trial Balance", intDue, accBal, r2(intDue - accBal), intDue === accBal ? "Accrued interest agrees to the statement." : "Accrued interest differs from the interest billed.", intDue === accBal ? "" : "Recalculate the interest accrual.");
-    const next = nextPeriodStart(period);
+    const next = nextPeriodStart(acctPeriod);
     m.filter(x => x.paymentDueDate.substring(0, 7) !== next.substring(0, 7)).forEach(x => add("DEBT-04", "Mortgage", `${x.servicer} x${x.loanNumberLast4}`, "Statement is the one billed for the month after the review period", WA, "Mortgage statement", "", x.paymentDueDate, next, "", "Statement payment date does not follow the review period.", "Confirm the correct month's statement was saved."));
   }
 
@@ -386,7 +400,7 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
     const listed = sources.filter(x => x.type.toUpperCase() === "AME_" + type)[0];
     if (!r) { if (listed && listed.status === "Found") add("AME-00", "AME", label, "The AME report could be read", WA, label, "", "", "", "", "The file was found but could not be read.", "Re-export it from Yardi as an Excel (.xlsx) file."); continue; }
     r.issues.forEach(m => add("AME-00", "AME", label, "The AME report could be read", WA, label, "", "", "", "", m, "Re-export the report and try again."));
-    const okProp = isOurs(r.propertyCode), okPer = r.period === period;
+    const okProp = isOurs(r.propertyCode), okPer = isOurPeriod(r.period);
     add("AME-00", "AME", label, "The AME report is for the requested property and period", okProp && okPer ? PA : EX, label, "Review request", `${r.propertyCode} ${r.period}`, `${code} ${period}`, "", okProp && okPer ? "Correct property and period." : "This AME report is for a different property or period.", okProp && okPer ? "" : `Replace with the ${label} for ${code} ${period}.`);
   }
 
@@ -449,7 +463,7 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
   // ---------------------------------------------------------------- PROPERTY MANAGEMENT FEE
   if (fee) {
     fee.issues.forEach(m => add("PMF-00", "Management Fee", "PM Fee workbook", "The PM Fee workbook could be read", WA, "PM Fee", "", "", "", "", m, "Correct the workbook and re-run."));
-    const idOk = fee.ok && isOurs(fee.propertyCode) && fee.period === period;
+    const idOk = fee.ok && isOurs(fee.propertyCode) && isOurPeriod(fee.period);
     add("PMF-00", "Management Fee", "PM Fee workbook", "The PM Fee workbook is for the requested property and period", idOk ? PA : EX, "PM Fee Calculation", "Review request", `${fee.propertyCode} ${fee.period}`, `${code} ${period}`, "", idOk ? "Correct property and period." : "The PM Fee workbook is for a different property or period.", idOk ? "" : `Replace with the PM Fee workbook for ${code} ${period}.`);
 
     if (idOk) {
@@ -497,8 +511,8 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
       if (live.length === 0) add("PMF-05", "Management Fee", "No adjustments", "Hand-entered adjustments appear in the GL for the account named", PA, "PM Fee Calculation", "", 0, "", "", "There are no adjustments this month.", "");
 
       // PMF-07: a sudden jump in the fee base usually means a cheque was scanned that should not be in revenue
-      const hist = fee.trailing.filter(m => m.month !== period && m.base !== 0).slice(-rules.feeTrailingMonths);
-      const cur = fee.trailing.filter(m => m.month === period)[0];
+      const hist = fee.trailing.filter(m => m.month !== acctPeriod && m.base !== 0).slice(-rules.feeTrailingMonths);
+      const cur = fee.trailing.filter(m => m.month === acctPeriod)[0];
       if (cur && hist.length > 0) {
         const avg = r2(hist.reduce((t, m) => t + m.base, 0) / hist.length), chg = r2(cur.base - avg), pct = avg === 0 ? 0 : Math.round(Math.abs(chg / avg) * 1000) / 10;
         const spike = chg > 0 && pct > rules.feeSpikePct && chg > rules.feeSpikeAmt;

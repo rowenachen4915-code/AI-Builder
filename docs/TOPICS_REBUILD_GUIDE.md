@@ -96,7 +96,19 @@ Do not add `help`, `review`, `internal review`, `files`, `status` or `rules`. Th
    - ReviewPeriod → `Topic.ReviewPeriod`
    - RequesterEmail → `System.User.Email`
 
-   Save the flow's output as `Status`.
+   Save the flow's outputs as `Status`, `Note`, `DetectedCode` and `DetectedPeriod` (the last two exist once BUILD_GUIDE 6A-2 is built; they are blank unless the Trial Balance in the folder is for a different property or period).
+
+   **4b. Confirm a mismatch before anything runs.** Add a **Condition** on the formula `!IsBlank(Topic.DetectedCode) || !IsBlank(Topic.DetectedPeriod)`.
+   - On that branch, **Ask a question** → **Boolean (yes/no)** → save as `ConfirmIdentity`. Text (insert the variables with the {x} picker):
+     ```
+     The Trial Balance in that folder is for property {Topic.DetectedCode} and period {Topic.DetectedPeriod}, not {Topic.PropertyCode} {Topic.ReviewPeriod}. Is this the package you want reviewed as {Topic.PropertyCode} {Topic.ReviewPeriod}?
+     ```
+     (If DetectedCode is blank the code matched and only the period differs, and the other way round; the wording still reads correctly because the blank one shows as empty. If you prefer, use two separate conditions with two messages.)
+   - **Condition** `Topic.ConfirmIdentity` is equal to `true`: **Add an action** → the same flow again, PropertyCode, ReviewPeriod and RequesterEmail as before, plus `AcceptedCode` → `Topic.DetectedCode` and `AcceptedPeriod` → `Topic.DetectedPeriod`. Save its outputs over `Status` and `Note`. Then continue to step 5.
+   - **All other conditions** (the manager said no): **Send a message** `Review not started. Check the property code and period, or move the files to the right folder, then ask again.` and **End the conversation** (or Go to step: the property code question).
+   - When neither detected value is set, continue to step 5 as today.
+
+   The review records a yes on its Source Validation tab (SRC-04, Reviewed / Monitor, with the manager's email and the date), so an accepted mismatch is never silent.
 
 5. **Send a message:**
    ```

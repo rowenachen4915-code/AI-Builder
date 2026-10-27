@@ -6,4 +6,8 @@ json(concat('{"type":"T12","file":"',replace(coalesce(first(body('Filter_T12'))?
 json(concat('{"type":"BC","file":"',replace(coalesce(first(body('Filter_BC'))?['{FilenameWithExtension}'],''),'"',''),'","status":"',if(equals(length(body('Filter_BC')),0),'Missing',if(equals(length(body('Filter_BC')),1),'Found','Multiple Versions')),'"}')),
 json(concat('{"type":"BANKREC","file":"',if(greater(length(body('Filter_BANKREC')),1),concat(string(length(body('Filter_BANKREC'))),' bank rec PDFs (one per account)'),replace(coalesce(first(body('Filter_BANKREC'))?['{FilenameWithExtension}'],''),'"','')),'","status":"',if(equals(length(body('Filter_BANKREC')),0),'Missing','Found'),'"}')),
 json(concat('{"type":"MORTGAGE","file":"',replace(coalesce(first(body('Filter_MORTGAGE'))?['{FilenameWithExtension}'],''),'"',''),'","status":"',if(equals(length(body('Filter_MORTGAGE')),0),'Missing',if(equals(length(body('Filter_MORTGAGE')),1),'Found','Multiple Versions')),'"}'))
+,
+json(concat('{"type":"CONFIRMATION","file":"',if(and(empty(ACCEPTEDCODE),empty(ACCEPTEDPERIOD)),'',concat('code ',coalesce(ACCEPTEDCODE,'-'),', period ',coalesce(ACCEPTEDPERIOD,'-'),' accepted by ',REQUESTEREMAIL,' on ',formatDateTime(utcNow(),'yyyy-MM-dd'))),'","status":"',if(and(empty(ACCEPTEDCODE),empty(ACCEPTEDPERIOD)),'Not Applicable','Accepted'),'"}'))
 ))
+
+ACCEPTEDCODE, ACCEPTEDPERIOD and REQUESTEREMAIL above are the trigger inputs: pick each from the dynamic content list (their internal names are text_N). The CONFIRMATION entry is what the review prints as SRC-04 when the manager accepted a different code or period (BUILD_GUIDE 6A-2).

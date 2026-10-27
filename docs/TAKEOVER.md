@@ -92,6 +92,7 @@ Every test the engine currently runs. Severity is the default in `defaultRuleset
 | SRC-01 | Every required source is present, one version only. Bank rec required when the TB has cash; mortgage statement required when the TB has debt | Exception |
 | SRC-02 | Each file is for the requested property and month, read from inside the file rather than the filename | Exception, and that file's tests are skipped |
 | SRC-03 | Each source could be read completely | Warning |
+| SRC-04 | Files for a different property code or period were accepted by the reviewing manager (names who and when) | Reviewed / Monitor |
 | TB-01, TB-02 | TB sums to zero; Forward + Debit − Credit = Ending on every row | Exception |
 | BSSS-01 | Every BSSS schedule ties to the TB to the cent; reversed signs called out separately | Exception |
 | BSSS-02 | Balance sheet account with a balance and no schedule | Exception, Monitor or Warning per the coverage table |

@@ -133,7 +133,7 @@ From now on, when you need to change a script, open it from this folder.
 ## PART 5 — Get the flow ready (10 minutes)
 
 1. Open the **Validate Internal Review Packages** flow. Click **Save As** (or ⋯ → Save a copy) and name the copy `BACKUP - Validate Internal Review Packages - <today's date>`. Go back to the original. **You now cannot break anything that you can't get back.**
-2. Add one more flow input so the flow knows who to email. Click the trigger (top box) → **Add an input** → **Text** → name it `RequesterEmail`.
+2. Add one more flow input so the flow knows who to message. Click the trigger (top box) → **Add an input** → **Text** → name it `RequesterEmail`. Add two more Text inputs the same way: `AcceptedCode` and `AcceptedPeriod`. They stay blank on a normal run; the agent fills them only after the manager confirms a mismatch (see 6A-2). Hover over each new input in the dynamic content list to learn its internal name (`text_2`, `text_3`…); below they are written as **ACCEPTEDCODE** and **ACCEPTEDPERIOD**: pick them from the list wherever you see those words.
 3. Add one more file filter. Find your existing **Filter array** action for the Budget Comparison. Click ⋯ → **Copy**, then paste it right under. In the copy, change the text it looks for to `balance_sheet`. (Your BSSS filter must keep ignoring this file — it already does, since it looks for "bs support" / "bsss".)
 4. Rename your filter actions so the pasted formulas in Part 6 work. Click each filter's title and type the new name exactly:
 
@@ -164,9 +164,32 @@ Rules for this whole part:
 
 A full review takes 2–4 minutes. The agent only waits about 100 seconds for a flow. So the flow answers the agent right away and sends the results by email when done.
 
-1. Find your **Respond to the agent** step. Leave it where it is. In the text it returns, add this sentence at the end: ` Review started. The findings report will be emailed to you in about 5 minutes.`
-2. Under it add a **Condition**. Name: **Required Files Complete**. Left box: pick your validation summary/status value. Middle: `contains`. Right: `REQUIRED FILES COMPLETE`.
+1. Find your **Respond to the agent** step. Leave it where it is. Its **Note** output should say `Review started. You'll get a Teams message with the results in a few minutes, and the report will be saved to the property's Internal Review > Review Results folder.` only when the files check passed; use the expression `if(and(contains(STATUS,'REQUIRED FILES COMPLETE'),empty(outputs('Identity_Line'))),'Review started. You''ll get a Teams message with the results in a few minutes, and the report will be saved to the property''s Internal Review > Review Results folder.','Review not started.')` where STATUS is your validation summary value.
+2. Under it add a **Condition**. Name: **Required Files Complete**. Row 1: your validation summary/status value `contains` `REQUIRED FILES COMPLETE`. Click **Add row**, keep **And**, row 2: expression `outputs('Identity_Line')` `is equal to` (leave the value empty). The review only starts when the files are complete **and** the Trial Balance is for the property and period the manager asked for, or the manager has accepted the difference (6A-2).
 3. Everything from here down goes inside the **True** side. Leave **False** empty.
+
+### 6A-2. Check the files are for the property and period asked for, before answering
+
+The readers take the property code and period from inside each file. If the Trial Balance says `c6us0871` or `08-2026` when the manager asked for `rpresshi` `09-2026`, every test would be skipped as "wrong property/period". Rather than fail silently, the flow reads the Trial Balance header **before** it answers the agent (a few seconds), and if it does not match, it stops and tells the agent what it found. The agent asks the manager; on yes it calls the flow again with the accepted code and period in the two inputs from Part 5, and the review runs with that acceptance written on the Source Validation tab (rule SRC-04, Reviewed / Monitor, naming who accepted it and when). On no, nothing runs.
+
+All of this goes **above** the Respond to the agent step, after the file filters.
+
+1. At the **top level of the flow**, under the trigger, add two **Initialize variable** steps: **Init Detected Code** (name `DetectedCode`, type String, value empty) and **Init Detected Period** (name `DetectedPeriod`, type String, value empty).
+2. Add SharePoint **Send an HTTP request to SharePoint**. Name: **Get Drive Id Early**. Same settings as **Get Drive Id** in 6B (Site Address **FlowSiteURL**, Method GET, Uri `_api/v2.0/drives?$filter=name eq 'Documents'`, or copy the step). It has to run before the response, which is why it is here as well as in 6B.
+3. Add **Condition**. Name: **Have TB Early**. Expression `length(body('Filter_TB'))` `is equal to` `1`. Inside **True**:
+   - Excel **Run script from SharePoint library**. Name: **Peek TB**. Workbook Location **FlowSiteURL**; Workbook Library expression `body('Get_Drive_Id_Early')?['value'][0]['id']` (or whatever expression your Read TB step uses for its library, with `Get_Drive_Id_Early` in place of `Get_Drive_Id`); Workbook expression `first(body('Filter_TB'))?['{Identifier}']`; Script `01_ReadTrialBalance.osts`.
+   - **Set variable** `DetectedCode` to expression `toLower(trim(coalesce(outputs('Peek_TB')?['body/result/propertyCode'],'')))`.
+   - **Set variable** `DetectedPeriod` to expression `trim(coalesce(outputs('Peek_TB')?['body/result/period'],''))`.
+   Leave **False** empty (a missing TB is already reported by the files check).
+4. Add **Compose**. Name: **Code Mismatch**. Expression:
+   `if(and(not(empty(variables('DetectedCode'))),not(contains(createArray(toLower(trim(PROPERTYCODE)),toLower(trim(coalesce(ACCEPTEDCODE,'')))),variables('DetectedCode')))),variables('DetectedCode'),'')`
+5. Add **Compose**. Name: **Period Mismatch**. Expression:
+   `if(and(not(empty(variables('DetectedPeriod'))),not(contains(createArray(trim(REVIEWPERIOD),trim(coalesce(ACCEPTEDPERIOD,''))),variables('DetectedPeriod')))),variables('DetectedPeriod'),'')`
+6. Add **Compose**. Name: **Identity Line**. Expression:
+   `if(and(empty(outputs('Code_Mismatch')),empty(outputs('Period_Mismatch'))),'',concat('IDENTITY MISMATCH: the Trial Balance in the folder is for property ',variables('DetectedCode'),', period ',variables('DetectedPeriod'),', not ',PROPERTYCODE,' ',REVIEWPERIOD,'. The review was not started.'))`
+7. In **Respond to the agent**: append the Identity Line to the Status text (new line, then the expression `outputs('Identity_Line')`), and add two **Text** outputs: `DetectedCode` = expression `outputs('Code_Mismatch')` and `DetectedPeriod` = expression `outputs('Period_Mismatch')`. They are blank when everything matches. After publishing, re-open the agent's tool so it picks up the new inputs and outputs (remove and re-add the tool if the list does not refresh).
+
+**CHECK:** run `rpresshi` `09-2026` with Shiloh's files (coded c6us0871) and nothing in the two accepted inputs: the Status ends with the IDENTITY MISMATCH line, DetectedCode is `c6us0871`, and the review does not start. Run it again with AcceptedCode `c6us0871`: no mismatch line, the review runs, and its Source Validation tab carries an SRC-04 line.
 
 ### 6B. Get the library's ID
 
@@ -247,7 +270,7 @@ Each new Condition goes **under** the previous Condition (not inside it).
    - f. Under it (still inside the loop) add **Append to array variable**. Name: **Add BankRec Result**. Name: `BankRecResults`. Value, paste as expression: `outputs('Read_BankRec_PDF')?['body']`
    - Leave the loop's concurrency setting off (the default). Each PDF is one prompt call, so two small PDFs cost about the same as one combined package.
 9. *(If you already built the one-PDF version: change **Have BANKREC** from `is equal to 1` to `is greater than 0`, add the Apply to each inside True, drag **Get BankRec PDF** and **Read BankRec PDF** into it, change Get BankRec PDF's File Identifier to the `items(...)` expression above, add steps a and f, and change `bankRecJson` in **Run Review** as shown in 6G. If dragging won't work, delete the two steps and re-add them inside the loop with the same names.)*
-10. In the **Sources JSON** Compose, replace the `BANKREC` line with the version in `docs/flow_sources_json_expression.txt` so several bank rec PDFs show as **Found** with a count instead of **Multiple Versions**.
+10. In the **Sources JSON** Compose, replace the `BANKREC` line and add the `CONFIRMATION` line with the version in `docs/flow_sources_json_expression.txt` so several bank rec PDFs show as **Found** with a count instead of **Multiple Versions**.
 11. The mortgage stays one statement per property. Add **Condition**. Name: **Have MORTGAGE**. Expression: `length(body('Filter_MORTGAGE'))` `is equal to` `1`. Inside **True** add SharePoint **Get file content**, name **Get Mortgage PDF**, Site Address **FlowSiteURL**, File Identifier as expression `first(body('Filter_MORTGAGE'))?['{Identifier}']`. Under it add **Run a prompt**, name **Read Mortgage PDF**, prompt `IR - Read Mortgage Statement PDF`, file as expression `base64(body('Get_Mortgage_PDF'))`.
 
 ### 6F. Make the empty report
@@ -268,8 +291,8 @@ Each new Condition goes **under** the previous Condition (not inside it).
 
 | Box | Value |
 |---|---|
-| propertyCode | expression: `concat(trim(triggerBody()?['text']), if(empty(first(body('List_rows_present_in_a_table')?['value'])?['ClientYardiCode']), '', concat(',', trim(first(body('List_rows_present_in_a_table')?['value'])?['ClientYardiCode']))))` (your code, plus the client's Yardi code after a comma when the tracker has one; see **Client-owned Yardi** below) |
-| reviewPeriod | your ReviewPeriod input |
+| propertyCode | expression: `concat(trim(PROPERTYCODE), if(empty(ACCEPTEDCODE),'',concat(',',toLower(trim(ACCEPTEDCODE)))))` — your code, plus the code the manager accepted after a mismatch (6A-2). If you also keep a ClientYardiCode column in the tracker (see **Client-owned Yardi**), add a third piece: `, if(empty(first(body('List_rows_present_in_a_table')?['value'])?['ClientYardiCode']),'',concat(',',trim(first(body('List_rows_present_in_a_table')?['value'])?['ClientYardiCode'])))` |
+| reviewPeriod | expression: `concat(trim(REVIEWPERIOD), if(empty(ACCEPTEDPERIOD),'',concat(',',trim(ACCEPTEDPERIOD))))` — the period asked for, plus the period the manager accepted after a mismatch (6A-2). The report keeps the requested period; ageing and posting-period tests run on the accepted one. |
 | reviewAttempt | output of *Review Attempt* |
 | submissionType | expression: `if(equals(outputs('Review_Attempt'),'R1'),'Initial','Re-review')` |
 | reportFileName | output of *Report File Name* |
@@ -286,7 +309,7 @@ Each new Condition goes **under** the previous Condition (not inside it).
 | mortgageJson | expression: `if(empty(outputs('Read_Mortgage_PDF')?['body']),'',string(outputs('Read_Mortgage_PDF')?['body']))` |
 | rulesetJson | leave empty |
 
-> **Client-owned Yardi.** Some properties' reports come from the client's own Yardi and carry the client's property code (Residences at Shiloh Crossing is `rpresshi` to us, `c6us0871` in every report). Without help the review marks every file as the wrong property and skips all tests. Fix, once per such property: in `Active_Property_Site_Tracker_for_Internal_Review.xlsx`, add a column **ClientYardiCode** to the **PropertySiteDirectory** table (click in the table, type the header in the first empty column to the right; Excel extends the table) and enter `c6us0871` on rpresshi's row. Leave it blank for everyone else. The propertyCode expression above then passes `rpresshi,c6us0871`; the review names everything rpresshi and accepts files carrying either code. Any other code is still an Exception.
+> **Client-owned Yardi.** Some properties' reports come from the client's own Yardi and carry the client's property code (Residences at Shiloh Crossing is `rpresshi` to us, `c6us0871` in every report). With 6A-2 built, the agent asks the manager each month and the accepted code comes in through ACCEPTEDCODE; nothing else is needed. If you would rather not be asked every month for a property, pre-fill the code once: in `Active_Property_Site_Tracker_for_Internal_Review.xlsx`, add a column **ClientYardiCode** to the **PropertySiteDirectory** table (click in the table, type the header in the first empty column to the right; Excel extends the table) and enter `c6us0871` on rpresshi's row. Leave it blank for everyone else. The propertyCode expression above then passes `rpresshi,c6us0871`; the review names everything rpresshi and accepts files carrying either code. Any other code is still an Exception.
 
 > The `if(empty(...` wrapper is what lets the review run when an optional file is missing: the box is simply passed in blank. Never type `[]` or `{}` into a box as a placeholder: leave it blank. (The review now reports a wrong value as a Warning naming the box rather than failing, but the tests for that source still won't run.) The script finds the numbers inside whatever the AI prompt step returns.
 
@@ -311,6 +334,7 @@ Each new Condition goes **under** the previous Condition (not inside it).
 When the user asks for an internal review, collect the Yardi property code and the review period as MM-YYYY, then run the Validate Internal Review Packages tool.
 Show the Required File Validation result exactly as returned.
 If required files are complete, tell the user the review is running and the results will arrive as a Teams message, with the report saved in the property's Internal Review / Review Results folder.
+If the tool returns DetectedCode or DetectedPeriod, the files in the folder are for a different property or period. Ask the user whether that is the package they want reviewed, showing both what they asked for and what was found. Only if they say yes, run the tool again with AcceptedCode and AcceptedPeriod set to the detected values. Never decide this yourself and never run the review on a mismatch without that answer.
 Never calculate, estimate or restate accounting amounts yourself. Never say a property passed, failed, is ready or is not ready; that is the reviewing manager's decision, recorded in the report's Manager Decision box.
 ```
 
@@ -397,7 +421,8 @@ The two exceptions are real: the Balance Sheet in the folder shows Accrued Expen
 | CASH-01 | Bank rec GL balance = TB cash, unreconciled difference = 0.00 | Exception |
 | CASH-02, CASH-03 | Age of every outstanding check, deposit, reconciling item and other item at month-end | Monitor over 30 days, Warning over 60, Exception over 90 |
 | CASH-04 | Every TB cash account has a reconciliation | Exception |
-| SRC-02 | (note) A file carrying the client's Yardi code mapped in the site tracker's ClientYardiCode column is the right property | Pass, naming the client code |
+| SRC-02 | (note) A file carrying a code or period the manager accepted (6A-2), or the client's code from the tracker, is the right property | Pass, naming what was accepted |
+| SRC-04 | The review ran on files for a different property code or period only because the reviewing manager accepted them; names who and when | Reviewed / Monitor |
 | CASH-06 | Each cash account has only one reconciliation (bank recs may arrive one PDF per account) | Exception |
 | DEBT-01 | Statement principal = TB mortgage payable | Exception |
 | DEBT-02, DEBT-03 | Escrow balances = TB escrow accounts; interest billed = accrued interest | Warning |

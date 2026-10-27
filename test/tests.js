@@ -97,6 +97,19 @@ for (const bad of ['[]','{}','"x"','not json']) { let ok=true,res; try{res=revie
   t('client Yardi code mapped: findings and keys stay under our code',mapped.findings.every(f=>f.propertyCode==='mn610wes'&&f.findingKey.startsWith('mn610wes|')));
   t('client Yardi code not mapped: every file is the wrong property',has(unmapped,'SRC-02',/different property/)&&has(unmapped,'PMF-00')); }
 
+// ---- Manager-confirmed identity: the agent asked, the manager said yes, the flow re-ran with the accepted code/period.
+{ const conf=S([{type:'CONFIRMATION',file:'code -, period 07-2026 accepted by rowena.chen@greystar.com on 2026-10-27',status:'Accepted'}]);
+  const runP=(per,src)=>{const wb=template();const j=v=>v===null?'':(typeof v==='string'?v:S(v));
+    const r=run('04_RunInternalReview',wb,'mn610wes',per,'R1','Initial','f.xlsx',src||'',j(TB0),j(BS0),j(T0),j(BC0),'',j(GL0),S(REC0),S(MTG0),S(AME0),S(PMF0),'');r.wb=wb;return r};
+  const plain=review({bal:null}), acc=runP('08-2026,07-2026',conf), rej=runP('08-2026');
+  t('accepted period: files for 07-2026 pass as the 08-2026 review, no wrong-period exceptions',!has(acc,'SRC-02',/different/)&&!has(acc,'AME-00')&&!has(acc,'PMF-00')&&acc.exceptions===plain.exceptions);
+  t('accepted period: report and keys keep the requested period, accounting runs on the files\' period (91-day item still 91 days)',acc.findings.every(f=>f.reviewPeriod==='08-2026')&&acc.wb._data['Executive Summary'].vals[4][1]==='08-2026'&&acc.findings.some(f=>f.ruleId==='CASH-03'&&f.difference==='91 days'));
+  const inWb=(r,rule,re)=>r.wb._data['All Results'].vals.slice(3).some(x=>x[14]===rule&&x[2]==='Reviewed / Monitor'&&re.test(String(x[4])));   // Monitor findings are in the report, not in the returned list
+  t('accepted period: SRC-04 Monitor finding records who accepted it and when',inWb(acc,'SRC-04',/rowena.chen@greystar.com on 2026-10-27/)&&acc.monitor===plain.monitor+1);
+  { const o=C(TB0);o.propertyCode='c6us0871';const wb=template();const r=run('04_RunInternalReview',wb,'mn610wes,c6us0871','07-2026','R1','Initial','f.xlsx','',S(o),S(BS0),'','','','','','','[]','','');r.wb=wb;
+    t('accepted code without confirmation details still gets an SRC-04 finding',inWb(r,'SRC-04',/not supplied/)); }
+  t('period not accepted: files for 07-2026 under an 08-2026 request are wrong-period exceptions, no SRC-04',has(rej,'SRC-02',/different/)&&!has(rej,'SRC-04')); }
+
 // ---- Report template v2.0: layout, routing, Executive Summary sections
 { const g=require('./runall.js'); const d=g.wb._data;
   const hdr=d['BSSS'].vals[2]; t('v2 layout: Status, Account / Item, Finding, Required Action are the first four columns',hdr[0]==='Status'&&hdr[1]==='Account / Item'&&hdr[2]==='Finding'&&hdr[3]==='Required Action');
