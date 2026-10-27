@@ -172,14 +172,13 @@ A full review takes 2–4 minutes. The agent only waits about 100 seconds for a 
 
 The readers take the property code and period from inside each file. If the Trial Balance says `c6us0871` or `08-2026` when the manager asked for `rpresshi` `09-2026`, every test would be skipped as "wrong property/period". Rather than fail silently, the flow reads the Trial Balance header **before** it answers the agent (a few seconds), and if it does not match, it stops and tells the agent what it found. The agent asks the manager; on yes it calls the flow again with the accepted code and period in the two inputs from Part 5, and the review runs with that acceptance written on the Source Validation tab (rule SRC-04, Reviewed / Monitor, naming who accepted it and when). On no, nothing runs.
 
-All of this goes **above** the Respond to the agent step, after the file filters.
+The Trial Balance reader already returns the code and period; the only change is that it has to run **before** the response instead of after it. So the TB steps move up, and nothing is read twice.
 
 1. At the **top level of the flow**, under the trigger, add two **Initialize variable** steps: **Init Detected Code** (name `DetectedCode`, type String, value empty) and **Init Detected Period** (name `DetectedPeriod`, type String, value empty).
-2. Add SharePoint **Send an HTTP request to SharePoint**. Name: **Get Drive Id Early**. Same settings as **Get Drive Id** in 6B (Site Address **FlowSiteURL**, Method GET, Uri `_api/v2.0/drives?$filter=name eq 'Documents'`, or copy the step). It has to run before the response, which is why it is here as well as in 6B.
-3. Add **Condition**. Name: **Have TB Early**. Expression `length(body('Filter_TB'))` `is equal to` `1`. Inside **True**:
-   - Excel **Run script from SharePoint library**. Name: **Peek TB**. Workbook Location **FlowSiteURL**; Workbook Library expression `body('Get_Drive_Id_Early')?['value'][0]['id']` (or whatever expression your Read TB step uses for its library, with `Get_Drive_Id_Early` in place of `Get_Drive_Id`); Workbook expression `first(body('Filter_TB'))?['{Identifier}']`; Script `01_ReadTrialBalance.osts`.
-   - **Set variable** `DetectedCode` to expression `toLower(trim(coalesce(outputs('Peek_TB')?['body/result/propertyCode'],'')))`.
-   - **Set variable** `DetectedPeriod` to expression `trim(coalesce(outputs('Peek_TB')?['body/result/period'],''))`.
+2. Drag **Get Drive Id** (6B) and then the whole **Have TB** condition, with **Read TB** inside it, up to just above **Respond to the agent**, after the file filters. Keep their names; Run Review finds Read TB by name wherever it sits. (If dragging out of the True branch will not work, delete the two and re-add them above the response with the same names and settings.)
+3. Inside **Have TB**'s True side, under **Read TB**, add two **Set variable** steps:
+   - `DetectedCode` to expression `toLower(trim(coalesce(outputs('Read_TB')?['body/result/propertyCode'],'')))`
+   - `DetectedPeriod` to expression `trim(coalesce(outputs('Read_TB')?['body/result/period'],''))`
    Leave **False** empty (a missing TB is already reported by the files check).
 4. Add **Compose**. Name: **Code Mismatch**. Expression:
    `if(and(not(empty(variables('DetectedCode'))),not(contains(createArray(toLower(trim(PROPERTYCODE)),toLower(trim(coalesce(ACCEPTEDCODE,'')))),variables('DetectedCode')))),variables('DetectedCode'),'')`
