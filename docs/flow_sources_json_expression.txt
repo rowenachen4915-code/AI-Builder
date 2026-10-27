@@ -1,0 +1,9 @@
+string(createArray(
+json(concat('{"type":"BSSS","file":"',replace(coalesce(first(body('Filter_BSSS'))?['{FilenameWithExtension}'],''),'"',''),'","status":"',if(equals(length(body('Filter_BSSS')),0),'Missing',if(equals(length(body('Filter_BSSS')),1),'Found','Multiple Versions')),'"}')),
+json(concat('{"type":"TB","file":"',replace(coalesce(first(body('Filter_TB'))?['{FilenameWithExtension}'],''),'"',''),'","status":"',if(equals(length(body('Filter_TB')),0),'Missing',if(equals(length(body('Filter_TB')),1),'Found','Multiple Versions')),'"}')),
+json(concat('{"type":"GL","file":"',replace(coalesce(first(body('Filter_GL'))?['{FilenameWithExtension}'],''),'"',''),'","status":"',if(equals(length(body('Filter_GL')),0),'Missing',if(equals(length(body('Filter_GL')),1),'Found','Multiple Versions')),'"}')),
+json(concat('{"type":"T12","file":"',replace(coalesce(first(body('Filter_T12'))?['{FilenameWithExtension}'],''),'"',''),'","status":"',if(equals(length(body('Filter_T12')),0),'Missing',if(equals(length(body('Filter_T12')),1),'Found','Multiple Versions')),'"}')),
+json(concat('{"type":"BC","file":"',replace(coalesce(first(body('Filter_BC'))?['{FilenameWithExtension}'],''),'"',''),'","status":"',if(equals(length(body('Filter_BC')),0),'Missing',if(equals(length(body('Filter_BC')),1),'Found','Multiple Versions')),'"}')),
+json(concat('{"type":"BANKREC","file":"',replace(coalesce(first(body('Filter_BANKREC'))?['{FilenameWithExtension}'],''),'"',''),'","status":"',if(equals(length(body('Filter_BANKREC')),0),'Missing',if(equals(length(body('Filter_BANKREC')),1),'Found','Multiple Versions')),'"}')),
+json(concat('{"type":"MORTGAGE","file":"',replace(coalesce(first(body('Filter_MORTGAGE'))?['{FilenameWithExtension}'],''),'"',''),'","status":"',if(equals(length(body('Filter_MORTGAGE')),0),'Missing',if(equals(length(body('Filter_MORTGAGE')),1),'Found','Multiple Versions')),'"}'))
+))

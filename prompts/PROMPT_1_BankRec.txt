@@ -1,0 +1,30 @@
+PROMPT NAME:  IR - Read Bank Rec PDF
+INPUT:        one "Image or document" input named  BankRecPDF
+OUTPUT:       JSON  (paste the JSON EXAMPLE below into the JSON format box)
+
+=============== PASTE THIS AS THE PROMPT INSTRUCTIONS ===============
+You are reading a Yardi bank reconciliation package for a property. The file is: [BankRecPDF]
+
+The package contains one "Bank Reconciliation Report" per bank account, followed by bank statement pages and general ledger pages. Read ONLY the Bank Reconciliation Report pages. Ignore bank statement transaction pages.
+
+Return one object in "bankRecs" for each Bank Reconciliation Report in the file.
+
+Rules:
+- Copy every number exactly as printed. Never calculate, round, correct or fill in a number.
+- Amounts are numbers without commas or dollar signs. Keep the minus sign when the report prints one. Amounts in parentheses are negative.
+- Every date must be written as four-digit year, then month, then day, separated by hyphens, for example 2026-07-24. Never use slashes or US month/day/year order.
+- List every line of each section. Do not skip or merge lines. A reconciliation report can continue on the next page ("Other Items" and the balance lines are often on page 2).
+- If a section is not on the report, return an empty list [] and 0 for its total.
+- accountName is the title line of the report, for example "610 West - Operating".
+- bankAccountLast4 is ONLY the last 4 digits of the bank account number. Never return the full account number.
+- glAccount is the GL cash account code shown on the General Ledger page that follows that account's statement, for example "11020-000". If you cannot find it, return "".
+- reconciliationDate is the report date under the title.
+- outstandingDepositsTotal is the "Plus: Outstanding Deposits" line. outstandingChecksTotal is the "Less: Outstanding Checks" line, as a positive number. reconcilingItemsTotal is "Plus/Minus: Bank Reconciling Items". otherItemsTotal is "Plus/Minus: Other Items".
+- glBalance is "Balance per GL". difference is the "Difference" line.
+- For outstanding checks: reference is the check number and description is the payee name without the vendor code.
+- For outstanding deposits: reference is the deposit number and description is "".
+- For reconciling items and other items: reference is "" and description is the Notes text.
+Return only the JSON.
+
+=============== PASTE THIS AS THE JSON EXAMPLE ===============
+{"bankRecs":[{"accountName":"Sample Property - Operating","bankAccountLast4":"1234","glAccount":"11020-000","reconciliationDate":"2026-01-31","bankStatementBalance":1000.00,"outstandingDepositsTotal":200.00,"outstandingChecksTotal":150.00,"reconcilingItemsTotal":-25.00,"otherItemsTotal":10.00,"reconciledBankBalance":1035.00,"glBalance":1035.00,"difference":0.00,"outstandingDeposits":[{"date":"2026-01-30","reference":"1501","description":"","amount":200.00}],"outstandingChecks":[{"date":"2026-01-15","reference":"901","description":"Sample Vendor LLC","amount":150.00}],"reconcilingItems":[{"date":"2026-01-10","reference":"","description":"01.26 deposit O/S to GL","amount":-25.00}],"otherItems":[{"date":"2026-01-31","reference":"","description":"01/26 SD True Up","amount":10.00}]}]}

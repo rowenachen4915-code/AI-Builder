@@ -1,0 +1,23 @@
+PROMPT NAME:  IR - Read Mortgage Statement PDF
+INPUT:        one "Image or document" input named  MortgagePDF
+OUTPUT:       JSON  (paste the JSON EXAMPLE below into the JSON format box)
+
+=============== PASTE THIS AS THE PROMPT INSTRUCTIONS ===============
+You are reading a mortgage loan billing statement from a loan servicer. The file is: [MortgagePDF]
+
+Return one object in "mortgages" for each loan in the file (usually one).
+
+Rules:
+- Copy every number exactly as printed. Never calculate, round, correct or fill in a number.
+- Amounts are numbers without commas or dollar signs. If a balance is not shown on the statement, return 0.
+- Every date must be written as four-digit year, then month, then day, separated by hyphens, for example 2026-07-24. Never use slashes or US month/day/year order.
+- servicer is the company that issued the statement.
+- loanNumberLast4 is ONLY the last 4 digits of the loan number.
+- statementDate is the printed or statement date. paymentDueDate is the due date of the payment being billed.
+- principalBalance is the unpaid principal balance of the loan (not the principal payment due).
+- interestDue is the interest portion of the payment being billed.
+- taxEscrowBalance, insuranceEscrowBalance, replacementReserveBalance and otherReserveBalance are the BALANCES held by the servicer, not the monthly escrow payments.
+Return only the JSON.
+
+=============== PASTE THIS AS THE JSON EXAMPLE ===============
+{"mortgages":[{"servicer":"Sample Servicer","loanNumberLast4":"1234","statementDate":"2026-01-20","paymentDueDate":"2026-02-01","principalBalance":1000000.00,"interestDue":5000.00,"taxEscrowBalance":25000.00,"insuranceEscrowBalance":8000.00,"replacementReserveBalance":12000.00,"otherReserveBalance":0.00}]}

@@ -1,0 +1,14 @@
+{
+  "name": "internal-review-agent",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Office Scripts review engine for the Greystar Accounting Manager Internal Review Agent (Copilot Studio + Power Automate)",
+  "scripts": {
+    "build": "node tools/build.js",
+    "lint": "node tools/lint.js",
+    "test": "node tools/build.js && node tools/lint.js && node test/tests.js",
+    "calibrate": "node tools/build.js && node test/runall.js"
+  },
+  "devDependencies": { "typescript": "^5.4.0" },
+  "engines": { "node": ">=18" }
+}
