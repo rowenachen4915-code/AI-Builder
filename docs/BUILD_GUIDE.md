@@ -238,10 +238,17 @@ Each new Condition goes **under** the previous Condition (not inside it).
 
 ### 6E. Read the two PDFs
 
-8. Add **Condition**. Name: **Have BANKREC**. Expression: `length(body('Filter_BANKREC'))` `is equal to` `1`.
-9. Inside **True** add SharePoint **Get file content**. Name: **Get BankRec PDF**. Site Address: **FlowSiteURL**. File Identifier, paste as expression: `first(body('Filter_BANKREC'))?['{Identifier}']`
-10. Under it (still inside True) add **Run a prompt**. Name: **Read BankRec PDF**. Prompt: `IR - Read Bank Rec PDF`. In the `BankRecPDF` box pick **File content** from *Get BankRec PDF*.
-11. Repeat 8–10 for the mortgage: **Have MORTGAGE** / `length(body('Filter_MORTGAGE'))` / **Get Mortgage PDF** / `first(body('Filter_MORTGAGE'))?['{Identifier}']` / **Read Mortgage PDF** / prompt `IR - Read Mortgage Statement PDF`.
+8. **Bank recs can come as one combined PDF or one PDF per account** (610 West sends one package; Presidium Regal sends an OP and an SD PDF). The flow reads every bank rec PDF in the folder and hands all the results to the review, which puts them together, checks each cash account has exactly one rec, and flags a duplicate as CASH-06.
+   - a. At the **top level of the flow** (not inside any condition, e.g. right under the trigger), add **Initialize variable**. Name the step **Init BankRec Results**. Variable name: `BankRecResults`. Type: **Array**. Value: `[]`. (Power Automate only allows Initialize variable at the top level.)
+   - b. Add **Condition**. Name: **Have BANKREC**. Expression: `length(body('Filter_BANKREC'))` `is greater than` `0`.
+   - c. Inside **True** add **Apply to each**. Name: **Each BankRec PDF**. "Select an output from previous steps", paste as expression: `body('Filter_BANKREC')`
+   - d. Inside the loop add SharePoint **Get file content**. Name: **Get BankRec PDF**. Site Address: **FlowSiteURL**. File Identifier, paste as expression: `items('Each_BankRec_PDF')?['{Identifier}']`
+   - e. Under it (still inside the loop) add **Run a prompt**. Name: **Read BankRec PDF**. Prompt: `IR - Read Bank Rec PDF` (choose the prompt first and let the step reload). BankRecPDF, paste as expression: `base64(body('Get_BankRec_PDF'))`
+   - f. Under it (still inside the loop) add **Append to array variable**. Name: **Add BankRec Result**. Name: `BankRecResults`. Value, paste as expression: `outputs('Read_BankRec_PDF')?['body']`
+   - Leave the loop's concurrency setting off (the default). Each PDF is one prompt call, so two small PDFs cost about the same as one combined package.
+9. *(If you already built the one-PDF version: change **Have BANKREC** from `is equal to 1` to `is greater than 0`, add the Apply to each inside True, drag **Get BankRec PDF** and **Read BankRec PDF** into it, change Get BankRec PDF's File Identifier to the `items(...)` expression above, add steps a and f, and change `bankRecJson` in **Run Review** as shown in 6G. If dragging won't work, delete the two steps and re-add them inside the loop with the same names.)*
+10. In the **Sources JSON** Compose, replace the `BANKREC` line with the version in `docs/flow_sources_json_expression.txt` so several bank rec PDFs show as **Found** with a count instead of **Multiple Versions**.
+11. The mortgage stays one statement per property. Add **Condition**. Name: **Have MORTGAGE**. Expression: `length(body('Filter_MORTGAGE'))` `is equal to` `1`. Inside **True** add SharePoint **Get file content**, name **Get Mortgage PDF**, Site Address **FlowSiteURL**, File Identifier as expression `first(body('Filter_MORTGAGE'))?['{Identifier}']`. Under it add **Run a prompt**, name **Read Mortgage PDF**, prompt `IR - Read Mortgage Statement PDF`, file as expression `base64(body('Get_Mortgage_PDF'))`.
 
 ### 6F. Make the empty report
 
@@ -275,11 +282,11 @@ Each new Condition goes **under** the previous Condition (not inside it).
 | glJson | same, with `Read_GL` |
 | pmFeeJson | expression: `if(empty(outputs('Read_PM_Fee')?['body/result']),'',string(outputs('Read_PM_Fee')?['body/result']))` |
 | ameJson | expression: `string(createArray(coalesce(outputs('Read_AME_AR')?['body/result'],json('{}')),coalesce(outputs('Read_AME_AP')?['body/result'],json('{}')),coalesce(outputs('Read_AME_GPR')?['body/result'],json('{}')),coalesce(outputs('Read_AME_SD')?['body/result'],json('{}')),coalesce(outputs('Read_AME_RR')?['body/result'],json('{}'))))` |
-| bankRecJson | expression: `if(empty(outputs('Read_BankRec_PDF')?['body']),'',string(outputs('Read_BankRec_PDF')?['body']))` |
+| bankRecJson | expression: `if(empty(variables('BankRecResults')),'',string(variables('BankRecResults')))` |
 | mortgageJson | expression: `if(empty(outputs('Read_Mortgage_PDF')?['body']),'',string(outputs('Read_Mortgage_PDF')?['body']))` |
 | rulesetJson | leave empty |
 
-> The `if(empty(...` wrapper is what lets the review run when an optional file is missing: the box is simply passed in blank. The script finds the numbers inside whatever the AI prompt step returns.
+> The `if(empty(...` wrapper is what lets the review run when an optional file is missing: the box is simply passed in blank. Never type `[]` or `{}` into a box as a placeholder: leave it blank. (The review now reports a wrong value as a Warning naming the box rather than failing, but the tests for that source still won't run.) The script finds the numbers inside whatever the AI prompt step returns.
 
 ### 6H. Email the findings
 
@@ -388,6 +395,7 @@ The two exceptions are real: the Balance Sheet in the folder shows Accrued Expen
 | CASH-01 | Bank rec GL balance = TB cash, unreconciled difference = 0.00 | Exception |
 | CASH-02, CASH-03 | Age of every outstanding check, deposit, reconciling item and other item at month-end | Monitor over 30 days, Warning over 60, Exception over 90 |
 | CASH-04 | Every TB cash account has a reconciliation | Exception |
+| CASH-06 | Each cash account has only one reconciliation (bank recs may arrive one PDF per account) | Exception |
 | DEBT-01 | Statement principal = TB mortgage payable | Exception |
 | DEBT-02, DEBT-03 | Escrow balances = TB escrow accounts; interest billed = accrued interest | Warning |
 | DEBT-04 | Statement is the one billed for the following month | Warning |

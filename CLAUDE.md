@@ -26,7 +26,7 @@ scripts/            The deployable Office Scripts. Paste each into Excel Online 
   07_ReadPMFee.ts            reader (PM Fee workbook, .xlsm)
 types/excelscript.d.ts   Minimal stub of the ExcelScript API. Only what the scripts call.
 test/harness.js          Mock Excel workbook for Node. Loads compiled scripts from build/.
-test/tests.js            79 tests: pass and deliberately-broken cases per rule, report layout checks, and a golden run.
+test/tests.js            90 tests: pass and deliberately-broken cases per rule, report layout checks, and a golden run.
 test/runall.js           Full calibration run against the 610 West packet.
 test/fixtures/*.json     The calibration workbooks as JSON (values, offsets, formulas).
 tools/build.js           Compiles each script separately into build/<name>/s.js
@@ -45,7 +45,7 @@ TASKS.md                 Prioritized backlog with acceptance criteria
 
 ```
 npm install          # typescript
-npm test             # build + lint + 76 tests. Must end "79 passed, 0 failed".
+npm test             # build + lint + 90 tests. Must end "90 passed, 0 failed".
 npm run calibrate    # full 610 West run; prints the summary; writes build/filled.json
 python tools/make_sample.py        # after calibrate: rebuild the sample report
 python tools/dump_fixtures.py      # after changing a calibration file: rebuild fixtures
@@ -58,6 +58,7 @@ python tools/dump_fixtures.py      # after changing a calibration file: rebuild 
 - A script can only see the workbook it runs against. So every source file gets a **reader** that returns a JSON summary, and **script 04** runs against a fresh copy of the report template, receives all readers' JSON as string parameters, and writes the findings. Source files are never modified.
 - `main()`'s parameters become the flow step's input boxes; its return value becomes the step's output. **Changing a `main()` signature breaks the deployed flow** until someone re-picks the script in that flow step. Say so in the change notes whenever you do it.
 - Script 04's signature, in order: `propertyCode, reviewPeriod, reviewAttempt, submissionType, reportFileName, sourcesJson, tbJson, bsssJson, t12Json, bcJson, bsJson, glJson, bankRecJson, mortgageJson, ameJson, pmFeeJson, rulesetJson?`. Blank string means "source not provided"; the engine skips that source's tests rather than failing.
+- Script 04 recognises each reader's result by a list it always carries (`rows`, `accounts`, `issues`) and also finds it inside the flow's `{"result": ...}` wrapper. Anything else passed into a box (`[]`, `{}`, text) becomes an SRC-03 Warning naming the box, never a crash: one bad box must not lose the whole review (flprereg 08-2026 R2 did).
 - Every finding carries a `FindingKey` = `property|period|ruleId|item`. It is stable across runs so an R1-vs-R2 comparison can join on it. Don't put amounts or timestamps in it.
 - Thresholds, account ranges and mappings live in `defaultRuleset()` at the bottom of script 04. `rulesetJson` can override it but the flow currently passes it empty.
 
@@ -95,6 +96,7 @@ Built by `tools/build_template.py`; that script and the writer at the bottom of 
 - **Security deposits:** deposits on hand + the delinquent deposits column = deposit liability (23030 + 23045). That reconciling item is expected and reported as a pass with the explanation. Deposits on hand is never tied to the rent roll deposit figure; they differ by refunds pending.
 - **GL "manual" means `J-` control numbers only.** `C-` resident charges, `R-` receipts, `P-` payables, `K-` invoices come from subledgers. Counting them produced 670 meaningless flags.
 - **PM Fee: typed vs formula is the whole test.** A fee base line should be a SUMIFS off the Yardi Report tab; a typed base line is an Exception. An adjustment is typed by design, meaning the income arrived as a journal entry rather than a resident charge, and it must match a specific manual JE in the GL account it names. Never tie an adjustment to an account total: 41155-000 in July holds a 9,706.48 payable debit, the qualifying 2,523.78 JE credit, and a 9,706.48 FCF reversal.
+- **Bank recs: one PDF or one per account.** 610 West sends one combined package; Presidium Regal (flprereg) sends an OP and an SD PDF. The flow reads every bank rec PDF in a loop and passes a list of prompt responses; `recsFrom()` in script 04 merges them. Several bank rec files that were all read are Found, not Multiple Versions. Two recs landing on the same TB cash account is CASH-06 (Exception); a cash account with none is CASH-04.
 - **PDF numbers are verified before use.** CASH-00: subtotals must foot to the reconciled balance (Exception if not). Each section's lines must add to that section's subtotal (Warning naming the section; the tie-out still stands, only ageing is incomplete).
 - **Accrual clear-down (ACCR-01):** the prior accrual must reverse to exactly $0.00 before the new accrual posts.
 

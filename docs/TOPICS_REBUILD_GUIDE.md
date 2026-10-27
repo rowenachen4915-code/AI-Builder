@@ -57,18 +57,39 @@ Do not add `help`, `review`, `internal review`, `files`, `status` or `rules`. Th
    Lower(Trim(Topic.PropertyCode))
    ```
 
-3. **Ask a question** → **User's entire response** → save as `ReviewPeriod`.
-   Text: `Which period? Enter it as MM-YYYY, for example 07-2026.`
+3. **Read the period in whatever form the manager types it.** Accepted: `07-2026`, `07/2026`, `07.2026`, `7/2026`, `July 2026`, `Jul 2026`, `July 26`, `Jul-26`, `July '26`. A two-digit number is always the year (periods are month and year, so `July 26` is July 2026, not the 26th). Everything is turned into `07-2026`, which is the only form the flow understands: it builds the report file name from the period, and a `/` in a file name makes SharePoint refuse to create the report.
 
-   In the question's **Properties → Entity recognition → Additional entity validation**, set the condition:
+   a. **Ask a question** → **User's entire response** → save as `ReviewPeriod`. Text: `What review period would you like reviewed? Example: 07-2026 or July 2026`. Leave its validation empty.
+
+   b. Directly under it, **Set a variable value** → set the existing `ReviewPeriod` → formula (paste it whole):
    ```
-   IsMatch(Topic.ReviewPeriod, "^(0[1-9]|1[0-2])-\d{4}$")
+   With(
+     { t: Trim(Substitute(Substitute(Lower(Trim(Substitute(Substitute(Substitute(Substitute(Substitute(Topic.ReviewPeriod, "/", " "), "-", " "), ".", " "), ",", " "), "'", " "))), "  ", " "), "  ", " ")) },
+     With(
+       { parts: Split(t, " ") },
+       With(
+         { m: First(parts).Value, y: Last(parts).Value },
+         With(
+           { mn: If(IsMatch(m, "^\d{1,2}$"), Value(m),
+                   Switch(Left(m, 3), "jan", 1, "feb", 2, "mar", 3, "apr", 4, "may", 5, "jun", 6,
+                                      "jul", 7, "aug", 8, "sep", 9, "oct", 10, "nov", 11, "dec", 12, 0)),
+             yr: If(IsMatch(y, "^\d{4}$"), Value(y), IsMatch(y, "^\d{2}$"), 2000 + Value(y), 0) },
+           If(CountRows(parts) = 2 && mn >= 1 && mn <= 12 && yr >= 2020 && yr <= 2099,
+              Text(mn, "00") & "-" & Text(yr), "")
+         )
+       )
+     )
+   )
    ```
-   and the **Condition not met prompt**:
-   ```
-   Please enter the period as MM-YYYY, for example 07-2026.
-   ```
-   (If your version has no Additional entity validation, add a **Condition** node with the same formula and send the prompt on the "All other conditions" branch, then repeat the question.)
+   It gives `07-2026` when it understood the answer and blank when it didn't.
+
+   c. **Add a condition**: `Topic.ReviewPeriod` **is Blank**.
+      - Under that branch: **Send a message** `I couldn't read that as a month and year. Please try again, for example 07-2026 or July 2026.` then **Topic management → Go to step** → pick the question in step a.
+      - Under **All other conditions**: carry on with the rest of the topic (the existing messages and the flow action).
+
+   **Test before publishing** (Test pane): `07-2026`, `07/2026`, `07.2026`, `7/2026`, `July 2026`, `jul 26`, `July '26` should all continue as `07-2026`; `13/2026`, `July`, `2026` and `hello` should be asked again.
+
+   *(Built 2026-09-27 in the topic named **Manager Internal Review** in the live agent; this guide calls the same topic Start Internal Review.)*
 
 4. **Add an action** → pick the flow **Validate Internal Review Packages**. Map its inputs:
    - PropertyCode → `Topic.PropertyCode`

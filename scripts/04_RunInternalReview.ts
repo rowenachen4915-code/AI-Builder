@@ -72,12 +72,22 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
   const periodEnd = endOfPeriod(period);
 
   // ---------------------------------------------------------------- read inputs (a bad or blank input never crashes the run)
-  const tb = parse<TBResult>(tbJson), bs = parse<BSSSResult>(bsssJson), t12 = parse<FinResult>(t12Json), bc = parse<FinResult>(bcJson), bal = parse<FinResult>(bsJson), gl = parse<GLResult>(glJson);
-  const recList = dig(pick(bankRecJson), "bankRecs", 0) as BankRec[] | undefined, debtList = dig(pick(mortgageJson), "mortgages", 0) as Mortgage[] | undefined;
+  // Each reader's result is recognised by a list it always carries, even when it arrives wrapped in the flow step's output.
+  const tb = reader<TBResult>(tbJson, "rows"), bs = reader<BSSSResult>(bsssJson, "rows"), t12 = reader<FinResult>(t12Json, "rows"),
+    bc = reader<FinResult>(bcJson, "rows"), bal = reader<FinResult>(bsJson, "rows"), gl = reader<GLResult>(glJson, "accounts");
+  const recList = recsFrom(pick(bankRecJson)), debtList = dig(pick(mortgageJson), "mortgages", 0) as Mortgage[] | undefined;
   const recs: BankRecFile | undefined = recList ? { bankRecs: recList } : undefined, debt: MortgageFile | undefined = debtList ? { mortgages: debtList } : undefined;
-  const sources = parse<SourceFile[]>(sourcesJson) ?? [];
-  const ameList = parse<AMEResult[]>(ameJson) ?? [];
-  const fee = parse<PMFeeResult>(pmFeeJson);
+  const asList = <T>(v: T[] | undefined): T[] => Array.isArray(v) ? v : [];
+  const sources = asList(parse<SourceFile[]>(sourcesJson)).filter(x => x && typeof x.type === "string");
+  const ameList = asList(parse<AMEResult[]>(ameJson)).filter(a => a && Array.isArray(a.values));
+  const fee = reader<PMFeeResult>(pmFeeJson, "issues");
+  // Something was passed in but it is not a reader's result (for example "[]" typed into the flow box): say so, don't crash.
+  const unusable: [string, string][] = [["Trial Balance", tbJson], ["BS Support Schedule", bsssJson], ["12 Month Statement", t12Json], ["Budget Comparison", bcJson],
+    ["Balance Sheet", bsJson], ["General Ledger", glJson], ["PM Fee workbook", pmFeeJson]];
+  const got = [tb, bs, t12, bc, bal, gl, fee];
+  unusable.forEach((u, i) => { const t = pick(u[1]); if (t !== "" && t !== "null" && got[i] === undefined)
+    add("SRC-03", "Source Validation", u[0], "Source file could be read completely", WA, "Run Review input", "", t.length > 40 ? t.substring(0, 40) + "..." : t, "", "",
+      `The ${u[0]} input to the review was not the reader's result, so its tests did not run.`, `Check the ${u[0]} box in the Run Review step passes the reader step's result.`); });
   const ame: { [k: string]: AMEResult } = {}; ameList.forEach(a => { if (a && a.ok) ame[a.reportType] = a; });
   const ameVal = (type: string, key: string): AMEValue | undefined => { const r = ame[type]; return r ? r.values.filter(v => v.key === key)[0] : undefined; };
   const tbMap: { [k: string]: TBRow } = {}; if (tb) tb.rows.forEach(r => { tbMap[r.account] = r; });
@@ -91,7 +101,9 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
   const match = (ok: boolean | undefined, got: string | undefined) => ok === undefined ? "Not checked" : got === undefined ? "Not read" : ok ? "Yes" : `No (${got})`;
   const src = (type: string, label: string, required: boolean, provided: boolean, propOk: boolean | undefined, prop: string | undefined, perOk: boolean | undefined, per: string | undefined, note: string) => {
     const s = sources.filter(x => x.type.toUpperCase() === type)[0];
-    const status = s && s.status ? s.status : provided ? "Found" : required ? "Missing" : "Not Applicable";
+    let status = s && s.status ? s.status : provided ? "Found" : required ? "Missing" : "Not Applicable";
+    // Bank recs may come one PDF per account. Several PDFs that were all read is not "Multiple Versions"; a duplicate rec is caught by CASH-06.
+    if (type === "BANKREC" && status === "Multiple Versions" && provided) status = "Found";
     const row = [s ? s.file : "", provided ? match(propOk, prop) : "", provided ? match(perOk, per) : "", status, note];
     if (status === "Missing" && required) add("SRC-01", "Source Validation", label, "Required source is in the Internal Review folder", EX, "Internal Review folder", "", "Missing", "Found", "", `${label} is required and was not found.`, `Save the ${label} in the Internal Review folder and re-run.`);
     else if (status === "Multiple Versions") add("SRC-01", "Source Validation", label, "One version of each source", EX, "Internal Review folder", "", "Multiple", "1", "", `More than one ${label} was found; the review cannot choose for you.`, "Keep only the final version in the folder (move drafts to an Archive subfolder).");
@@ -191,6 +203,9 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
       const readOk = footOk;
       let t = tbMap[b.glAccount];
       if (!t) t = tbRange(rules.cashFrom, rules.cashTo).filter(r => !used[r.account] && r2(r.ending) === r2(b.glBalance))[0];
+      // One PDF per account is normal; two recs for the same account means a draft and a final, or the same file twice.
+      if (t && used[t.account]) add("CASH-06", "Cash", `${t.account} ${t.name}`, "Each cash account has one reconciliation", EX, `Bank Rec ${label}`, "Bank Rec", "", "", "",
+        "More than one bank reconciliation was provided for this cash account.", "Keep only the final reconciliation in the Internal Review folder (move drafts to an Archive subfolder).");
       if (t) used[t.account] = true;
       const T1 = "Bank rec GL balance = TB cash; reconciled difference = $0.00";
       let tieOk = false;
@@ -630,6 +645,29 @@ function defaultRuleset(): RuleSet {
 }
 function pick(s: string | undefined): string { return s === undefined || s === null ? "" : String(s).trim(); }
 function parse<T>(s: string | undefined): T | undefined { const t = pick(s); if (t === "" || t === "null") return undefined; try { const v = JSON.parse(t) as T | string; return (typeof v === "string" ? JSON.parse(v) : v) as T; } catch (e) { return undefined; } }
+/** Bank recs arrive either as one prompt response (one PDF holding every account) or, when the folder has one PDF per
+ *  account, as a list of prompt responses. Take the bankRecs list from each response and put them together. */
+function recsFrom(t: string): BankRec[] | undefined {
+  if (t === "" || t === "null") return undefined;
+  let v: unknown = t;
+  try { v = JSON.parse(t); if (typeof v === "string") v = JSON.parse(v); } catch (e) { v = t; }
+  const parts: unknown[] = Array.isArray(v) ? v : [v];
+  const out: BankRec[] = [];
+  let found = false;
+  for (const p of parts) { const list = dig(p, "bankRecs", 0) as BankRec[] | undefined; if (list) { found = true; list.forEach(b => { if (b) out.push(b); }); } }
+  return found ? out : undefined;
+}
+/** Parses a reader's result, looking inside wrappers such as the flow's {"result": ...}. Anything without the reader's key list is rejected. */
+function reader<T>(s: string | undefined, key: string): T | undefined { const t = pick(s); if (t === "" || t === "null") return undefined; return holder(t, key, 0) as T | undefined; }
+function holder(v: unknown, key: string, depth: number): unknown {
+  if (depth > 6 || v === null || v === undefined) return undefined;
+  if (typeof v === "string") { const t = v.trim(); if (t.charAt(0) !== "{" && t.charAt(0) !== "[" && t.charAt(0) !== '"') return undefined; try { return holder(JSON.parse(t), key, depth + 1); } catch (e) { return undefined; } }
+  if (typeof v !== "object" || Array.isArray(v)) return undefined;
+  const o = v as { [k: string]: unknown };
+  if (Array.isArray(o[key])) return o;
+  for (const k of Object.keys(o)) { const r = holder(o[k], key, depth + 1); if (r !== undefined) return r; }
+  return undefined;
+}
 /** Finds the named list anywhere inside what the AI prompt step returned (the flow may pass the whole response, or JSON inside text). */
 function dig(v: unknown, key: string, depth: number): unknown {
   if (depth > 8 || v === null || v === undefined) return undefined;

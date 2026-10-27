@@ -68,6 +68,25 @@ o=C(PMF0);o.propertyCode='tx123abc';r=review({fee:o});t('PM fee workbook for the
 let tbz=C(TB0);tbz.rows.find(x=>x.account==='61030-000').debit=20000;r=review({tb:tbz});t('fee expensed differs from fee calculated = exception',has(r,'PMF-04'));
 r=review({fee:null});t('no PM fee workbook: review still runs',r.passed>30&&!r.findings.some(f=>/^PMF/.test(f.ruleId)));
 
+// ---- A bad input to Run Review is a finding, never a crash (flprereg 08-2026 R2 died on "Cannot read properties of undefined (reading 'forEach')")
+for (const bad of ['[]','{}','"x"','not json']) { let ok=true,res; try{res=review({fee:bad})}catch(e){ok=false}
+  t(`PM Fee input ${bad}: review completes and says the input was not a reader result`,ok&&res.findings.some(f=>f.ruleId==='SRC-03'&&/PM Fee/.test(f.item))&&!res.findings.some(f=>/^PMF/.test(f.ruleId))); }
+{ let ok=true,res; try{res=review({tb:'[]',gl:'{}',ame:'{}',src:'{}'})}catch(e){ok=false}
+  t('TB [] / GL {} / AME {} / sources {}: review completes, TB and GL flagged as unusable',ok&&has(res,'SRC-03',/Trial Balance/)&&has(res,'SRC-03',/General Ledger/)); }
+{ const plain=review(),wrapped=review({fee:S({result:PMF0}),tb:S({body:{result:TB0}})});
+  t('reader result wrapped in the flow step output ({result: ...}) gives the same review as the plain result',wrapped.exceptions===plain.exceptions&&wrapped.warnings===plain.warnings&&wrapped.monitor===plain.monitor&&wrapped.passed===plain.passed); }
+
+// ---- One bank rec PDF per account (flprereg: separate OP and SD PDFs). The flow passes a list of prompt responses.
+{ const op=C(REC0),sd=C(REC0);op.bankRecs=[REC0.bankRecs[0]];sd.bankRecs=[REC0.bankRecs[1]];
+  const r1=review(),r2=review({rec:S([{responsev2:{predictionOutput:{text:S(op),finishReason:'stop'}}},{body:{structuredOutput:sd}}])});
+  t('two PDFs, one rec each: same review as the combined package',r2.exceptions===r1.exceptions&&r2.warnings===r1.warnings&&r2.monitor===r1.monitor&&r2.passed===r1.passed&&!has(r2,'CASH-04')&&!has(r2,'CASH-06'));
+  const r3=review({rec:S([op,op,sd])});
+  t('the same rec provided twice = CASH-06 exception naming the account',r3.findings.some(f=>f.ruleId==='CASH-06'&&f.status==='Exception'));
+  t('only one of two recs provided: the other cash account is CASH-04',has(review({rec:S([op])}),'CASH-04'));
+  const multi=S([{type:'BANKREC',file:'2 bank rec PDFs',status:'Multiple Versions'}]);
+  t('several bank rec PDFs that were all read are not a Multiple Versions exception',!has(review({src:multi,rec:S([op,sd])}),'SRC-01'));
+  t('several bank rec PDFs that were not read are still a Multiple Versions exception',has(review({src:multi,rec:null}),'SRC-01',/More than one/)); }
+
 // ---- Report template v2.0: layout, routing, Executive Summary sections
 { const g=require('./runall.js'); const d=g.wb._data;
   const hdr=d['BSSS'].vals[2]; t('v2 layout: Status, Account / Item, Finding, Required Action are the first four columns',hdr[0]==='Status'&&hdr[1]==='Account / Item'&&hdr[2]==='Finding'&&hdr[3]==='Required Action');

@@ -109,6 +109,7 @@ Every test the engine currently runs. Severity is the default in `defaultRuleset
 | CASH-01 | Bank rec GL balance = TB cash, unreconciled difference $0.00 | Exception |
 | CASH-02, CASH-03 | Every outstanding item aged at period end | Monitor over 30 days, Warning over 60, Exception over 90 |
 | CASH-04 | Every TB cash account has a reconciliation | Exception |
+| CASH-06 | Each cash account has only one reconciliation (bank recs may arrive one PDF per account) | Exception |
 | DEBT-01 | Statement principal = TB mortgage payable | Exception |
 | DEBT-02, DEBT-03 | Escrow balances and accrued interest vs the statement | Warning |
 | DEBT-04 | Statement is the one billed for the following month | Warning |

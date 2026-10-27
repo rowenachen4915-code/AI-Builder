@@ -80,6 +80,15 @@ Workbook Standards (pack doc 08), the Report Structure topic and the knowledge p
 ### T16. Confirm the bank rec Monitor band — needs the owner
 She defined Clean (nothing over 30 days), Warning (over 60) and Exception (over 90). Items aged 31–60 days are currently Monitor. Confirm that, or change `cashMonitorDays` / `cashWarningDays` / `cashExceptionDays`.
 
+### T17. Flow follow-ups from the flprereg 08-2026 pilot — Flow / UI
+Found while getting the second property running (2026-09-26/27). Each has step-by-step wording in the session notes; move it into BUILD_GUIDE / TOPICS_REBUILD_GUIDE as it is done.
+- **Failure message:** a Teams step after Run Review set to run only when it "has failed / has timed out", so a failed review is never silent. Pairs with T13 (delete the blank report in the same branch).
+- **Agent Note output:** only say "Review started" when Required Files Complete is true; otherwise "Review not started".
+- **Period format:** written up in TOPICS_REBUILD_GUIDE section A step 3 (accepts 07-2026, 07/2026, 07.2026, July 2026, July 26; converts to 07-2026). Owner to build and test in Copilot Studio.
+- **ACCESS DENIED vs FOLDER NOT FOUND:** the files check reported a 403 as FOLDER NOT FOUND, which cost several rounds.
+- **Access model before rollout:** agent flows run on the connections saved in them (no run-only / end-user credentials). Agreed direction: the agent checks the manager can open the property's Internal Review folder (SharePoint tool, end-user auth) before calling the flow; the flow runs on a service account IT adds to every Accounting channel. Needs IT.
+- **SD bank rec PDF has no GL account on it,** so the rec is matched to 11040 by balance. Ask for the GL account to be printed on the rec.
+
 ---
 
 ## P4 — Blocked
