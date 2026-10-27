@@ -87,6 +87,16 @@ for (const bad of ['[]','{}','"x"','not json']) { let ok=true,res; try{res=revie
   t('several bank rec PDFs that were all read are not a Multiple Versions exception',!has(review({src:multi,rec:S([op,sd])}),'SRC-01'));
   t('several bank rec PDFs that were not read are still a Multiple Versions exception',has(review({src:multi,rec:null}),'SRC-01',/More than one/)); }
 
+// ---- Client-owned Yardi: reports carry the client's code (rpresshi's files say c6us0871). Flow passes "ourcode,clientcode".
+{ const alias=o=>{o=C(o);o.propertyCode='c6us0871';return o};
+  const x={tb:alias(TB0),bs:alias(BS0),t12:alias(T0),bc:alias(BC0),gl:alias(GL0),fee:alias(PMF0)};
+  const run2=(pc)=>{const wb=template();const j=v=>typeof v==='string'?v:S(v);
+    return run('04_RunInternalReview',wb,pc,'07-2026','R1','Initial','f.xlsx','',j(x.tb),j(x.bs),j(x.t12),j(x.bc),'',j(x.gl),S(REC0),S(MTG0),S(AME0.map(a=>{a=C(a);a.propertyCode='c6us0871';return a})),j(x.fee),'')};
+  const plain=review({bal:null}), mapped=run2('mn610wes,c6us0871'), unmapped=run2('mn610wes');
+  t('client Yardi code mapped: files under c6us0871 pass as mn610wes, same review as the plain packet',!has(mapped,'SRC-02')&&!has(mapped,'AME-00')&&!has(mapped,'PMF-00')&&mapped.exceptions===plain.exceptions&&mapped.passed===plain.passed);
+  t('client Yardi code mapped: findings and keys stay under our code',mapped.findings.every(f=>f.propertyCode==='mn610wes'&&f.findingKey.startsWith('mn610wes|')));
+  t('client Yardi code not mapped: every file is the wrong property',has(unmapped,'SRC-02',/different property/)&&has(unmapped,'PMF-00')); }
+
 // ---- Report template v2.0: layout, routing, Executive Summary sections
 { const g=require('./runall.js'); const d=g.wb._data;
   const hdr=d['BSSS'].vals[2]; t('v2 layout: Status, Account / Item, Finding, Required Action are the first four columns',hdr[0]==='Status'&&hdr[1]==='Account / Item'&&hdr[2]==='Finding'&&hdr[3]==='Required Action');

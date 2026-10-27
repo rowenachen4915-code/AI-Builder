@@ -59,7 +59,11 @@ interface ReviewSummary { overallStatus: string; ruleset: string; exceptions: nu
 function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod: string, reviewAttempt: string, submissionType: string, reportFileName: string,
               sourcesJson: string, tbJson: string, bsssJson: string, t12Json: string, bcJson: string, bsJson: string, glJson: string,
               bankRecJson: string, mortgageJson: string, ameJson: string, pmFeeJson: string, rulesetJson?: string): ReviewSummary {
-  const code = propertyCode.trim().toLowerCase(), period = reviewPeriod.trim(), attempt = reviewAttempt.trim() === "" ? "R1" : reviewAttempt.trim();
+  // propertyCode may carry the client's own Yardi code after a comma ("rpresshi,c6us0871") when the reports come from a
+  // client-owned Yardi. The first code is ours and names everything; a file carrying any of the codes is the right property.
+  const codes = propertyCode.split(/[,;|]/).map(c => c.trim().toLowerCase()).filter(c => c !== "");
+  const code = codes.length > 0 ? codes[0] : "", isOurs = (c: string | undefined) => c !== undefined && codes.indexOf(String(c).trim().toLowerCase()) >= 0;
+  const period = reviewPeriod.trim(), attempt = reviewAttempt.trim() === "" ? "R1" : reviewAttempt.trim();
   const rules = pick(rulesetJson) !== "" ? JSON.parse(pick(rulesetJson)) as RuleSet : defaultRuleset();
   const all: Finding[] = [];
   const EX = "Exception", WA = "Warning", MO = "Reviewed / Monitor", PA = "Pass";
@@ -108,10 +112,10 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
     if (status === "Missing" && required) add("SRC-01", "Source Validation", label, "Required source is in the Internal Review folder", EX, "Internal Review folder", "", "Missing", "Found", "", `${label} is required and was not found.`, `Save the ${label} in the Internal Review folder and re-run.`);
     else if (status === "Multiple Versions") add("SRC-01", "Source Validation", label, "One version of each source", EX, "Internal Review folder", "", "Multiple", "1", "", `More than one ${label} was found; the review cannot choose for you.`, "Keep only the final version in the folder (move drafts to an Archive subfolder).");
     else if (provided && (propOk === false || perOk === false)) add("SRC-02", "Source Validation", label, "File is for the requested property and period (read from inside the file)", EX, label, "Review request", `${prop ?? ""} ${per ?? ""}`.trim(), `${code} ${period}`, "", `${label} is for a different property or period.`, `Replace with the ${label} for ${code} ${period}.`);
-    else if (provided) add("SRC-02", "Source Validation", label, "File is for the requested property and period", PA, label, "Review request", `${prop ?? ""} ${per ?? ""}`.trim(), `${code} ${period}`, "", propOk === undefined ? "Found. Property and period are not machine-checked for this file type." : "Correct property and period.", "");
+    else if (provided) add("SRC-02", "Source Validation", label, "File is for the requested property and period", PA, label, "Review request", `${prop ?? ""} ${per ?? ""}`.trim(), `${code} ${period}`, "", propOk === undefined ? "Found. Property and period are not machine-checked for this file type." : prop && prop !== code ? `Correct property and period (the file uses the client's Yardi code ${prop}, mapped to ${code} in the site tracker).` : "Correct property and period.", "");
     return row;
   };
-  const okP = (r: { ok: boolean; propertyCode: string } | undefined) => r ? r.ok && r.propertyCode === code : undefined;
+  const okP = (r: { ok: boolean; propertyCode: string } | undefined) => r ? r.ok && isOurs(r.propertyCode) : undefined;
   const okM = (r: { ok: boolean; period: string } | undefined) => r ? r.ok && r.period === period : undefined;
   const glProvided = sources.some(x => x.type.toUpperCase() === "GL" && x.status === "Found");
   const srcRows = [
@@ -382,7 +386,7 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
     const listed = sources.filter(x => x.type.toUpperCase() === "AME_" + type)[0];
     if (!r) { if (listed && listed.status === "Found") add("AME-00", "AME", label, "The AME report could be read", WA, label, "", "", "", "", "The file was found but could not be read.", "Re-export it from Yardi as an Excel (.xlsx) file."); continue; }
     r.issues.forEach(m => add("AME-00", "AME", label, "The AME report could be read", WA, label, "", "", "", "", m, "Re-export the report and try again."));
-    const okProp = r.propertyCode === code, okPer = r.period === period;
+    const okProp = isOurs(r.propertyCode), okPer = r.period === period;
     add("AME-00", "AME", label, "The AME report is for the requested property and period", okProp && okPer ? PA : EX, label, "Review request", `${r.propertyCode} ${r.period}`, `${code} ${period}`, "", okProp && okPer ? "Correct property and period." : "This AME report is for a different property or period.", okProp && okPer ? "" : `Replace with the ${label} for ${code} ${period}.`);
   }
 
@@ -445,7 +449,7 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
   // ---------------------------------------------------------------- PROPERTY MANAGEMENT FEE
   if (fee) {
     fee.issues.forEach(m => add("PMF-00", "Management Fee", "PM Fee workbook", "The PM Fee workbook could be read", WA, "PM Fee", "", "", "", "", m, "Correct the workbook and re-run."));
-    const idOk = fee.ok && fee.propertyCode === code && fee.period === period;
+    const idOk = fee.ok && isOurs(fee.propertyCode) && fee.period === period;
     add("PMF-00", "Management Fee", "PM Fee workbook", "The PM Fee workbook is for the requested property and period", idOk ? PA : EX, "PM Fee Calculation", "Review request", `${fee.propertyCode} ${fee.period}`, `${code} ${period}`, "", idOk ? "Correct property and period." : "The PM Fee workbook is for a different property or period.", idOk ? "" : `Replace with the PM Fee workbook for ${code} ${period}.`);
 
     if (idOk) {

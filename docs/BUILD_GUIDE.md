@@ -268,7 +268,7 @@ Each new Condition goes **under** the previous Condition (not inside it).
 
 | Box | Value |
 |---|---|
-| propertyCode | your PropertyCode input |
+| propertyCode | expression: `concat(trim(triggerBody()?['text']), if(empty(first(body('List_rows_present_in_a_table')?['value'])?['ClientYardiCode']), '', concat(',', trim(first(body('List_rows_present_in_a_table')?['value'])?['ClientYardiCode']))))` (your code, plus the client's Yardi code after a comma when the tracker has one; see **Client-owned Yardi** below) |
 | reviewPeriod | your ReviewPeriod input |
 | reviewAttempt | output of *Review Attempt* |
 | submissionType | expression: `if(equals(outputs('Review_Attempt'),'R1'),'Initial','Re-review')` |
@@ -285,6 +285,8 @@ Each new Condition goes **under** the previous Condition (not inside it).
 | bankRecJson | expression: `if(empty(variables('BankRecResults')),'',string(variables('BankRecResults')))` |
 | mortgageJson | expression: `if(empty(outputs('Read_Mortgage_PDF')?['body']),'',string(outputs('Read_Mortgage_PDF')?['body']))` |
 | rulesetJson | leave empty |
+
+> **Client-owned Yardi.** Some properties' reports come from the client's own Yardi and carry the client's property code (Residences at Shiloh Crossing is `rpresshi` to us, `c6us0871` in every report). Without help the review marks every file as the wrong property and skips all tests. Fix, once per such property: in `Active_Property_Site_Tracker_for_Internal_Review.xlsx`, add a column **ClientYardiCode** to the **PropertySiteDirectory** table (click in the table, type the header in the first empty column to the right; Excel extends the table) and enter `c6us0871` on rpresshi's row. Leave it blank for everyone else. The propertyCode expression above then passes `rpresshi,c6us0871`; the review names everything rpresshi and accepts files carrying either code. Any other code is still an Exception.
 
 > The `if(empty(...` wrapper is what lets the review run when an optional file is missing: the box is simply passed in blank. Never type `[]` or `{}` into a box as a placeholder: leave it blank. (The review now reports a wrong value as a Warning naming the box rather than failing, but the tests for that source still won't run.) The script finds the numbers inside whatever the AI prompt step returns.
 
@@ -395,6 +397,7 @@ The two exceptions are real: the Balance Sheet in the folder shows Accrued Expen
 | CASH-01 | Bank rec GL balance = TB cash, unreconciled difference = 0.00 | Exception |
 | CASH-02, CASH-03 | Age of every outstanding check, deposit, reconciling item and other item at month-end | Monitor over 30 days, Warning over 60, Exception over 90 |
 | CASH-04 | Every TB cash account has a reconciliation | Exception |
+| SRC-02 | (note) A file carrying the client's Yardi code mapped in the site tracker's ClientYardiCode column is the right property | Pass, naming the client code |
 | CASH-06 | Each cash account has only one reconciliation (bank recs may arrive one PDF per account) | Exception |
 | DEBT-01 | Statement principal = TB mortgage payable | Exception |
 | DEBT-02, DEBT-03 | Escrow balances = TB escrow accounts; interest billed = accrued interest | Warning |

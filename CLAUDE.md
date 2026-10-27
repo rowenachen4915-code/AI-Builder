@@ -26,7 +26,7 @@ scripts/            The deployable Office Scripts. Paste each into Excel Online 
   07_ReadPMFee.ts            reader (PM Fee workbook, .xlsm)
 types/excelscript.d.ts   Minimal stub of the ExcelScript API. Only what the scripts call.
 test/harness.js          Mock Excel workbook for Node. Loads compiled scripts from build/.
-test/tests.js            90 tests: pass and deliberately-broken cases per rule, report layout checks, and a golden run.
+test/tests.js            93 tests: pass and deliberately-broken cases per rule, report layout checks, and a golden run.
 test/runall.js           Full calibration run against the 610 West packet.
 test/fixtures/*.json     The calibration workbooks as JSON (values, offsets, formulas).
 tools/build.js           Compiles each script separately into build/<name>/s.js
@@ -45,7 +45,7 @@ TASKS.md                 Prioritized backlog with acceptance criteria
 
 ```
 npm install          # typescript
-npm test             # build + lint + 90 tests. Must end "90 passed, 0 failed".
+npm test             # build + lint + 93 tests. Must end "93 passed, 0 failed".
 npm run calibrate    # full 610 West run; prints the summary; writes build/filled.json
 python tools/make_sample.py        # after calibrate: rebuild the sample report
 python tools/dump_fixtures.py      # after changing a calibration file: rebuild fixtures
@@ -89,6 +89,7 @@ Built by `tools/build_template.py`; that script and the writer at the bottom of 
 - **The review never decides readiness.** It reports findings and counts; Ready for Release / Ready With Comments / Not Ready is the manager's call, made in the Manager Decision dropdown (Executive Summary D8, Review History column D). The engine leaves both blank, `overallStatus` is only `REVIEW COMPLETE` or `NOT STARTED`, and the Teams summary ends "Awaiting manager decision." Don't reintroduce a computed verdict in the script, the template formulas, the agent or the topics.
 
 - **Read identity from inside the file**, not the filename. Every reader returns property code and period from the report header; a file for the wrong property or month is an Exception and its tests are skipped.
+- **Client-owned Yardi codes.** Some clients' Yardi uses their own property code (rpresshi's reports all say c6us0871). The flow passes `propertyCode` as `ourcode,clientcode` from the site tracker's `ClientYardiCode` column; the first code names the report, findings and FindingKeys, and a file carrying any listed code is the right property (`isOurs()` in script 04). No signature change.
 - **Never stop at the first exception.** One problem must not hide another.
 - **Compare money at two decimals.** 5,981.985 vs 5,981.99 passes; a real $0.01 difference fails.
 - **Take report totals, never sum detail rows.** A Yardi rent roll prints several charge rows per unit; summing market rent gives 1,117,548 where the report's own total is 1,061,771.

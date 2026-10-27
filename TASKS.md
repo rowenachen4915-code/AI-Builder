@@ -87,6 +87,7 @@ Found while getting the second property running (2026-09-26/27). Each has step-b
 - **Period format:** written up in TOPICS_REBUILD_GUIDE section A step 3 (accepts 07-2026, 07/2026, 07.2026, July 2026, July 26; converts to 07-2026). Owner to build and test in Copilot Studio.
 - **ACCESS DENIED vs FOLDER NOT FOUND:** the files check reported a 403 as FOLDER NOT FOUND, which cost several rounds.
 - **Access model before rollout:** agent flows run on the connections saved in them (no run-only / end-user credentials). Agreed direction: the agent checks the manager can open the property's Internal Review folder (SharePoint tool, end-user auth) before calling the flow; the flow runs on a service account IT adds to every Accounting channel. Needs IT.
+- **Client-owned Yardi codes (done in script 04, 2026-09-27):** owner to add the ClientYardiCode column to the tracker and change Run Review's propertyCode box (BUILD_GUIDE 6G).
 - **SD bank rec PDF has no GL account on it,** so the rec is matched to 11040 by balance. Ask for the GL account to be printed on the rec.
 
 ---
