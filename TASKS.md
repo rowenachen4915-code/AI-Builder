@@ -1,5 +1,8 @@
 # TASKS — Internal Review Agent backlog
 
+> **Where we left off (2026-10-28 evening).** Done in Copilot Studio: identity confirmation (flow inputs AcceptedCode/AcceptedPeriod, TB read moved above the response, mismatch composes, topic question with yes = second Validate Flow call, no = Review not started); tool set to "Only when referenced by topics or agents"; RequesterEmail = User.Email; PropertyCode/ReviewPeriod = Global variables. Normal run gives one Teams card.
+> **Next, in this order:** (1) paste scripts 02, 03, 04 from this commit into Excel Online; (2) replace the IR - Read Bank Rec PDF prompt instructions with prompts/PROMPT_1_BankRec.txt; (3) add the once-per-chat guard to Manager Internal Review (Global.LastReviewStarted, condition above the first Action) because a mismatch run still restarts the topic and sends two cards; (4) Shiloh's accountant corrects the BSSS property code c6us087a -> c6us0871, then re-run Shiloh in a new chat; (5) delete Shiloh's extra R-number reports; (6) decide on chart auto-detection (proposal: classify accounts by leading digit + name + T12/BC section, show it on a Chart Mapping tab, warn on anything unclassified; first step is a detection spreadsheet over both calibration TBs for review).
+
 Ordered by priority. Each task says whether it changes a `main()` signature, because that breaks the deployed flow until the owner re-picks the script in that flow step. Anything marked **Flow / UI** can't be done from this repo: write the step-by-step instructions into `docs/` for the owner instead.
 
 ---
