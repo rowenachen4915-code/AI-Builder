@@ -124,6 +124,7 @@ for (const bad of ['[]','{}','"x"','not json']) { let ok=true,res; try{res=revie
   t('Shiloh Balance Sheet, T12 and Budget Comparison all tie to the TB on the CBRE chart',rows('BS-01','Pass').length===1&&!rows('BS-01','Exception').length&&!rows('BS-02').length&&rows('T12-00','Pass').length===1&&rows('BC-01','Pass').length===1);
   t('Shiloh: the BSSS is still the wrong property (c6us087a typed in the file), so its tests do not run',rows('SRC-02','Exception').length===1&&/Balance Sheet Support/.test(rows('SRC-02','Exception')[0][3])&&!rows('BSSS-01').length);
   t('Shiloh: SRC-05 warns the chart does not fit the ruleset, so range-based passes are not real',rows('SRC-05','Warning').length===1);
+  t('Shiloh: the Executive Summary says the BSSS was not reviewed (wrong code in the file), never that everything ties',/BSSS was not reviewed: it reads as c6us087a 09-2026/.test(sh.wb._data['Executive Summary'].vals[29][0]));
   t('Shiloh: an unreadable fee workbook says so, not "different property"',rows('PMF-00','Exception').some(x=>/could not be read/.test(x[4])));
   t('GOLDEN Shiloh 09-2026 (no bank rec, no AME): 2 exceptions, 8 warnings, 17 monitor, 17 passed',sh.exceptions===2&&sh.warnings===8&&sh.monitor===17&&sh.passed===17);
   const fixed=shRun('rpresshi,c6us0871,c6us087a'); const fAll=fixed.wb._data['All Results'].vals.slice(3).filter(x=>x[0]!=='');

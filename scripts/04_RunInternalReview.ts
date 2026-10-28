@@ -578,7 +578,11 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
       es.getCell(29 + i, 5).setValue(f.finding);
     });
     if (bsssProblems.length > 10) es.getCell(38, 0).setValue(`...and ${bsssProblems.length - 9} more on the BSSS tab`);
-    if (bsssProblems.length === 0) es.getCell(29, 0).setValue(bs ? "All BSSS schedules tie to the Trial Balance and every balance sheet account is supported." : "No BSSS was provided, so no tie-out was performed.");
+    // Only say everything ties when the BSSS tests actually ran: a BSSS for another property or period is skipped, not passed.
+    const bsssRan = all.some(f => f.ruleId === "BSSS-01" || f.ruleId === "BSSS-02");
+    if (bsssProblems.length === 0) es.getCell(29, 0).setValue(!bs ? "No BSSS was provided, so no tie-out was performed."
+      : !bsssRan ? `The BSSS was not reviewed: it reads as ${bs.propertyCode} ${bs.period}, not this property and period. See Source Validation, correct the property code or period on the BSSS, and run the review again.`
+      : "All BSSS schedules tie to the Trial Balance and every balance sheet account is supported.");
 
     // Bank reconciliations, rows 44-51
     recSummary.slice(0, 8).forEach((b, i) => es.getRangeByIndexes(43 + i, 0, 1, 8).setValues([[b.account, b.status, b.glAccount, b.reconciled, b.glBalance, b.difference, b.oldest, b.over30]]));

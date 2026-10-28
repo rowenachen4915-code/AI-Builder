@@ -26,7 +26,7 @@ scripts/            The deployable Office Scripts. Paste each into Excel Online 
   07_ReadPMFee.ts            reader (PM Fee workbook, .xlsm)
 types/excelscript.d.ts   Minimal stub of the ExcelScript API. Only what the scripts call.
 test/harness.js          Mock Excel workbook for Node. Loads compiled scripts from build/.
-test/tests.js            109 tests: pass and deliberately-broken cases per rule, report layout checks, and a golden run.
+test/tests.js            110 tests: pass and deliberately-broken cases per rule, report layout checks, and a golden run.
 test/runall.js           Full calibration run against the 610 West packet.
 test/fixtures/*.json     The calibration workbooks as JSON (values, offsets, formulas).
 tools/build.js           Compiles each script separately into build/<name>/s.js
@@ -47,7 +47,7 @@ TASKS.md                 Prioritized backlog with acceptance criteria
 
 ```
 npm install          # typescript
-npm test             # build + lint + 109 tests. Must end "109 passed, 0 failed".
+npm test             # build + lint + 110 tests. Must end "110 passed, 0 failed".
 npm run calibrate    # full 610 West run; prints the summary; writes build/filled.json
 python tools/make_sample.py        # after calibrate: rebuild the sample report
 python tools/dump_fixtures.py      # after changing a calibration file: rebuild fixtures (--shiloh for the second packet)
