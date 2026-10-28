@@ -33,11 +33,20 @@ function main(workbook: ExcelScript.Workbook): FinResult {
   if (!out.propertyCode) out.issues.push("Property code not found in the report header.");
   if (!out.period) out.issues.push("Period not found in the report header.");
 
-  // Column headings: the label rows sit directly above the first account row, from column C across (may be stacked on two rows)
+  // Column headings: the label rows above the first account row, from column C across (may be stacked on two rows).
+  // Some charts put grouping lines between the headings and the first account (CBRE's T12 and Budget Comparison have
+  // "OCR Detail CBRE GI Global" and section names in column B), so look up to 10 rows back, but only at rows with
+  // nothing in column A (the title block) and something from column C across (the headings).
   const width = grid[firstAcct].length;
+  const headRows: number[] = [];
+  for (let i = Math.max(0, firstAcct - 10); i < firstAcct; i++) {
+    if (txt(grid[i][0]) !== "") continue;
+    let any = false; for (let c = 2; c < width; c++) if (txt(grid[i][c]) !== "") any = true;
+    if (any) headRows.push(i);
+  }
   for (let c = 2; c < width; c++) {
     const parts: string[] = [];
-    for (let i = Math.max(0, firstAcct - 3); i < firstAcct; i++) { const p = txt(grid[i][c]); if (p !== "" && txt(grid[i][0]) === "") parts.push(p); }
+    for (const i of headRows) { const p = txt(grid[i][c]); if (p !== "") parts.push(p); }
     out.columns.push(parts.join(" "));
   }
   while (out.columns.length > 0 && out.columns[out.columns.length - 1] === "") out.columns.pop();
@@ -53,7 +62,8 @@ function main(workbook: ExcelScript.Workbook): FinResult {
     let bad = false;                                                                                  // "N/A" is normal in % columns
     values.forEach((v, k) => { if (isNaN(v)) { if (out.columns[k].indexOf("%") < 0) bad = true; values[k] = 0; } });
     if (bad) { out.issues.push(`Row ${i + 1} (${acct}): an amount is not numeric.`); continue; }
-    const kind = /^total\b/i.test(name) || /-(09\d|\d99)$/.test(acct) ? "total" : "detail";
+    // Totals: Greystar's chart marks them in the account number (12999-999, 40090-000); CBRE's in the name ("Land Total").
+    const kind = /^total\b/i.test(name) || /\btotal$/i.test(name) || /-(09\d|\d99)$/.test(acct) ? "total" : "detail";
     out.rows.push({ account: acct, name, section, kind, values });
   }
   out.rowCount = out.rows.length;

@@ -24,7 +24,7 @@ function main(workbook: ExcelScript.Workbook): BSSSResult {
   for (const r of info.slice(0, 15)) {
     const label = txt(r[0]).toLowerCase();
     if (label === "property name") out.propertyName = txt(r[1]);
-    if (label === "property code") out.propertyCode = txt(r[1]).toLowerCase();
+    if (label === "property code") out.propertyCode = txt(r[1]).replace(/^'+/, "").toLowerCase();   // a typed leading apostrophe is not part of the code
     if (label === "month") out.period = serialToPeriod(r[1]);
     if (label === "prepared by") out.preparedBy = txt(r[1]);
   }

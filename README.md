@@ -6,7 +6,7 @@ Office Scripts review engine for Greystar's Accounting Manager Internal Review A
 
 ```
 npm install
-npm test          # expect: 98 passed, 0 failed
+npm test          # expect: 109 passed, 0 failed
 npm run calibrate # expect: mn610wes 07-2026 R1: Review Complete - 3 exception(s), 44 warning(s), 58 to monitor, 85 passed. Awaiting manager decision.
 ```
 

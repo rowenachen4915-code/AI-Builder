@@ -15,6 +15,9 @@ Rules:
 - Every date must be written as four-digit year, then month, then day, separated by hyphens, for example 2026-07-24. Never use slashes or US month/day/year order.
 - List every line of each section. Do not skip or merge lines. A reconciliation report can continue on the next page ("Other Items" and the balance lines are often on page 2).
 - If a section is not on the report, return an empty list [] and 0 for its total.
+- Only the items ABOVE the "Reconciled Bank Balance" line are outstanding. Ignore every section whose heading starts with "Cleared" ("Cleared Checks", "Cleared Deposits", "Cleared Bank Reconciling Items", "Cleared Other Items") and every "Total Cleared ..." line. Those items have already cleared the bank and must never appear in any list or total.
+- A section's total is ONLY its "Plus:" / "Less:" / "Plus/Minus:" line above the Reconciled Bank Balance. If that line is not printed, the section has no outstanding items: return [] and 0, even if a Cleared section with the same name follows.
+- bankStatementBalance is the "Balance Per Bank Statement" line. reconciledBankBalance is the "Reconciled Bank Balance" line.
 - accountName is the title line of the report, for example "610 West - Operating".
 - bankAccountLast4 is ONLY the last 4 digits of the bank account number. Never return the full account number.
 - glAccount is the GL cash account code shown on the General Ledger page that follows that account's statement, for example "11020-000". If you cannot find it, return "".

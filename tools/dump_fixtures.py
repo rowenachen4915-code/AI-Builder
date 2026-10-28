@@ -30,6 +30,18 @@ FIXTURES = {
     "pmfee": ("07_2026_Yardi_PM_Fee_-_Fee_Pools_w_Custom_Report-610_West.xlsm", True),
 }
 
+# Second calibration property: Residences at Shiloh Crossing (rpresshi), reports from CBRE's Yardi (code c6us0871, CBRE chart).
+SHILOH = os.path.join(ROOT, "calibration", "Shiloh_09-2026")
+SHILOH_FIXTURES = {
+    "tb":    ("Trial_Balance_c6us0871_Accrual (8).xlsx", False),
+    "bsss":  ("2026 BS Support Schedule - CBRE COA (2) (2).xlsm", False),
+    "t12":   ("12_Month_Statement_c6us0871_Accrual (11).xlsx", False),
+    "bc":    ("Budget_Comparison_c6us0871_Accrual (22).xlsx", False),
+    "bs":    ("Balance_Sheet_PeriodChange_c6us0871_Accrual.xlsx", False),
+    "gl":    ("General_Ledger_c6us0871_Accrual (68).xlsx", False),
+    "pmfee": ("CBRE 08.2026 PM Fee Based on INCOME - Leasing in Yardi (1).xlsm", True),
+}
+
 def conv(v):
     if v is None: return ""
     if isinstance(v, datetime.datetime): return (v - datetime.datetime(1899, 12, 30)).total_seconds() / 86400
@@ -55,6 +67,12 @@ if __name__ == "__main__":
         t = os.path.join(ROOT, "template", "Internal_Review_Report_Template_v2_0.xlsx")
         with open(os.path.join(OUT, "template.json"), "w") as fh: json.dump(dump(t, False), fh)
         print("wrote test/fixtures/template.json"); sys.exit(0)
+    if "--shiloh" in sys.argv:
+        os.makedirs(os.path.join(OUT, "shiloh"), exist_ok=True)
+        for name, (src, forms) in SHILOH_FIXTURES.items():
+            with open(os.path.join(OUT, "shiloh", name + ".json"), "w") as fh: json.dump(dump(os.path.join(SHILOH, src), forms), fh)
+            print("wrote test/fixtures/shiloh/" + name + ".json")
+        sys.exit(0)
     only = set(sys.argv[1:])
     for name, (fname, forms) in FIXTURES.items():
         if only and name not in only: continue

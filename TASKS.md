@@ -41,6 +41,9 @@ Ordered by priority. Each task says whether it changes a `main()` signature, bec
 **Flow / UI:** Owner adds a Ruleset column to the PropertySiteDirectory table and passes the JSON into `rulesetJson`. Write those instructions.
 **Accept:** Golden run identical when the base ruleset is passed explicitly; wrong-chart guard has a test.
 
+### T5a. First client ruleset: CBRE (Shiloh) — needs the owner
+Shiloh 09-2026 (calibration/Shiloh_09-2026) shows exactly what a CBRE ruleset must supply: cash accounts (1510-2420, 1510-2430, 1510-4810), the BSSS coverage table for the 4-digit chart, AR/AP Other accounts, the accrual accounts for the clear-down test (CBRE accrued liabilities are 26xx, not 22), utilities, contract services, depreciation, major expense groups and the fee accounts. SRC-05 lists the untested areas on every CBRE review until then. Also: an income-based PM Fee workbook reader (CBRE's "PM Fee Based on INCOME" template).
+
 ### T6. Approved fee terms (pack PMF-09)
 **Why:** PMF-03 recalculates the fee using the rate typed in the workbook, so a wrong rate is self-consistent and passes. On 610 West the workbook's Yardi Report tab shows 2.25% while the calculation uses 2.5% (2,283.99 difference). Currently only a Monitor item.
 **Do:** Add per-property approved terms (rate, minimum, maximum, method) to the ruleset/config. Rate in workbook ≠ approved rate → Exception.

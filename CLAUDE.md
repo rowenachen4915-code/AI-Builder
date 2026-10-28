@@ -26,7 +26,7 @@ scripts/            The deployable Office Scripts. Paste each into Excel Online 
   07_ReadPMFee.ts            reader (PM Fee workbook, .xlsm)
 types/excelscript.d.ts   Minimal stub of the ExcelScript API. Only what the scripts call.
 test/harness.js          Mock Excel workbook for Node. Loads compiled scripts from build/.
-test/tests.js            98 tests: pass and deliberately-broken cases per rule, report layout checks, and a golden run.
+test/tests.js            109 tests: pass and deliberately-broken cases per rule, report layout checks, and a golden run.
 test/runall.js           Full calibration run against the 610 West packet.
 test/fixtures/*.json     The calibration workbooks as JSON (values, offsets, formulas).
 tools/build.js           Compiles each script separately into build/<name>/s.js
@@ -37,6 +37,8 @@ tools/build_template.py  Builds report template v2.0. Its layout is a contract w
 prompts/                 The two PDF prompts (text + JSON schema)
 template/                Report template v2.0 (built by tools/build_template.py), v1.2 kept for reference, and the SAMPLE report (answer key)
 calibration/610West_07-2026/   Real source files. Contains real client bank data; do not commit publicly.
+calibration/Shiloh_09-2026/    Second calibration property (rpresshi, CBRE Yardi c6us0871, CBRE chart). Real client data.
+flow-export/             The published Validate Flow definition (backup and reference for flow instructions).
 docs/                    BUILD_GUIDE, TAKEOVER, TOPICS_REBUILD_GUIDE, knowledge pack, prior handoffs
 TASKS.md                 Prioritized backlog with acceptance criteria
 ```
@@ -45,10 +47,10 @@ TASKS.md                 Prioritized backlog with acceptance criteria
 
 ```
 npm install          # typescript
-npm test             # build + lint + 98 tests. Must end "98 passed, 0 failed".
+npm test             # build + lint + 109 tests. Must end "109 passed, 0 failed".
 npm run calibrate    # full 610 West run; prints the summary; writes build/filled.json
 python tools/make_sample.py        # after calibrate: rebuild the sample report
-python tools/dump_fixtures.py      # after changing a calibration file: rebuild fixtures
+python tools/dump_fixtures.py      # after changing a calibration file: rebuild fixtures (--shiloh for the second packet)
 ```
 
 **Definition of done for any change to scripts/:** `npm test` passes, the golden test still says 3 / 44 / 58 / 85 (or the change explains exactly which findings moved and why, and the golden values are updated deliberately), and every rule you touched has both a passing and a failing test.
@@ -109,6 +111,12 @@ Golden result: `3 exceptions, 44 warnings, 58 monitor, 85 passed`.
 All three exceptions are real: the Balance Sheet in the folder was exported before a late entry (22010 at 112,327.91 vs TB 85,745.35; current year earnings 26,582.56 short), which fires BS-01 and BS-02; and a 5/1 American Bankers reconciling item of −1,402.22 on the operating bank rec is 91 days old. Eight more bank rec items aged 31–60 days show as Monitor. Everything else ties exactly, including all 22 BSSS schedules, AR 132,014.96, prepaid −25,733.24, AP 76,728.90, market rent 1,061,771, mortgage principal 77,830,000, both bank recs (284,746.15 and 353,796.91), all 210 GL sections, and the PM fee (base 911,225.84, fee 22,786.57 at 2.5% = 61030 expense = 22005 accrual). Full list in `docs/TAKEOVER.md`.
 
 Open questions from this packet (need the owner, not code): GPR concessions/write-off account mapping (reads 540.77 vs 589.55, 6,458.07 vs 6,388.07); PM Fee workbook's Yardi Report tab says 2.25% while the calculation uses 2.5%; a 6/1 bank rec item of −53,964.00 vs a 53,696.00 bank credit looks transposed.
+
+## Calibration: Residences at Shiloh Crossing (rpresshi), 09-2026, CBRE chart
+
+Golden result (no bank rec, no AME): `2 exceptions, 8 warnings, 17 monitor, 17 passed`, run as `rpresshi,c6us0871`. The reports come from CBRE's Yardi (code c6us0871) on CBRE's chart (1510-2420 style). What it proves: the Balance Sheet (167 accounts), T12 and Budget Comparison tie to the TB on a 4-digit client chart; SRC-05 warns that Greystar's range-based tests did not test anything; an unreadable (income-based) fee workbook says so. The BSSS in the folder has the property code mistyped `c6us087a`, a real error, so its tests do not run; accepted as a third code, 48 schedules tie and 1610-1950 (allowance) is 0.20 off.
+
+Lessons from it, now in the code: report headings can sit several rows above the first account (`03` looks 10 rows back); CBRE marks totals in the name ("Land Total"); account class comes from the leading digit (`liabEquity`, `incomeStmt`), not Greystar's 20000/40000 boundaries; the T12/BC staleness ties compare amounts, because which sign a line prints with depends on the client's tree; a bank rec whose PDF read does not foot is not aged (the prompt read Shiloh's "Cleared" sections as outstanding in one run and not another). Still Greystar-only until T5: every range in `defaultRuleset()` (cash, BSSS coverage, AR/AP Other, accruals `22`, utilities, contracts, trends, major expenses, fee accounts).
 
 ## Controlled documents
 

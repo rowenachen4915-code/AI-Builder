@@ -422,6 +422,7 @@ The two exceptions are real: the Balance Sheet in the folder shows Accrued Expen
 | CASH-04 | Every TB cash account has a reconciliation | Exception |
 | SRC-02 | (note) A file carrying a code or period the manager accepted (6A-2), or the client's code from the tracker, is the right property | Pass, naming what was accepted |
 | SRC-04 | The review ran on files for a different property code or period only because the reviewing manager accepted them; names who and when | Reviewed / Monitor |
+| SRC-05 | The TB's chart of accounts does not fit the ruleset's account ranges, so range-based tests tested nothing even where they show Pass | Warning |
 | CASH-06 | Each cash account has only one reconciliation (bank recs may arrive one PDF per account) | Exception |
 | DEBT-01 | Statement principal = TB mortgage payable | Exception |
 | DEBT-02, DEBT-03 | Escrow balances = TB escrow accounts; interest billed = accrued interest | Warning |

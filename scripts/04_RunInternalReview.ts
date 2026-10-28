@@ -102,6 +102,17 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
   const ameVal = (type: string, key: string): AMEValue | undefined => { const r = ame[type]; return r ? r.values.filter(v => v.key === key)[0] : undefined; };
   const tbMap: { [k: string]: TBRow } = {}; if (tb) tb.rows.forEach(r => { tbMap[r.account] = r; });
   const num = (a: string) => parseInt(a.split("-")[0], 10);
+  // Account class from the leading digit, which holds on both Greystar's 5-digit chart (12010-000) and 4-digit client
+  // charts (1510-2420): 1 assets, 2-3 liabilities and equity, 4-9 income statement.
+  const lead = (a: string) => parseInt(a.trim().charAt(0), 10);
+  const liabEquity = (a: string) => lead(a) === 2 || lead(a) === 3, incomeStmt = (a: string) => lead(a) >= 4;
+  // Yardi's T12 and Budget Comparison print revenue (and the balance sheet lines of a cash-flow tree) with the opposite
+  // sign to the TB: everything from 1 to 4. Expenses (5-9) print as on the TB.
+  const creditNormal = (a: string) => lead(a) >= 1 && lead(a) <= 4;
+  // The T12 and Budget Comparison ties exist to catch a report exported before the last entry posted, which changes the
+  // amount. Which sign a line prints with depends on the client's reporting tree (CBRE prints capex and interest income
+  // the other way round from Greystar), and the report is system-generated, so the ties compare the amount, not the sign.
+  const same = (x: number, y: number) => r2(Math.abs(x)) === r2(Math.abs(y));
   const tbRange = (from: number, to: number) => tb ? tb.rows.filter(r => num(r.account) >= from && num(r.account) <= to && r2(r.ending) !== 0) : [];
 
   // ---------------------------------------------------------------- SOURCE VALIDATION
@@ -124,6 +135,15 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
   const okP = (r: { ok: boolean; propertyCode: string } | undefined) => r ? r.ok && isOurs(r.propertyCode) : undefined;
   const okM = (r: { ok: boolean; period: string } | undefined) => r ? r.ok && isOurPeriod(r.period) : undefined;
   const glProvided = sources.some(x => x.type.toUpperCase() === "GL" && x.status === "Found");
+  // SRC-05: the ruleset's account ranges are written for one chart of accounts. On another chart (CBRE's 1510-2420 against
+  // Greystar's 11020-000) the range-based tests find no accounts and would otherwise report Pass having tested nothing.
+  if (tb && tb.rows.length > 0) {
+    const outside = tb.rows.filter(r => { const n = num(r.account); return isNaN(n) || n < rules.balanceSheetFrom || n > 99999; }).length;
+    if (outside * 2 > tb.rows.length) add("SRC-05", "Source Validation", "Chart of accounts", "The TB's chart of accounts matches the ruleset's account ranges", WA,
+      "Trial Balance", `Ruleset: ${rules.name}`, `${outside} of ${tb.rows.length} accounts outside the ranges`, "", "",
+      `The TB uses a different chart of accounts from the ruleset (${rules.name}). Tests that find accounts by number range did not test anything, even where they show Pass: BSSS coverage (BSSS-02), cash accounts needing a rec (CASH-04), AR/AP Other ageing, accrual clear-down, utilities, contract services, depreciation, major expenses and the T12 trend tests. The tie-outs (TB, BSSS schedules, Balance Sheet, T12, Budget Comparison, GL, bank recs) did run.`,
+      "Review the untested areas by hand until a ruleset for this client's chart is set up.");
+  }
   // SRC-04: a review that only ran because the manager accepted a different code or period says so, visibly, with who and when.
   if (codes.length > 1 || periods.length > 1) {
     const conf = sources.filter(x => x.type.toUpperCase() === "CONFIRMATION" && x.status === "Accepted")[0];
@@ -189,11 +209,11 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
     for (const r of bal.rows.filter(x => x.kind === "detail")) {
       const t = tbMap[r.account];
       if (/current year|net income/i.test(r.name) && tb) {                                         // Yardi carries this line at $0 on the TB, so tie it to TB net income
-        const ni = r2(-tb.rows.filter(x => num(x.account) >= 40000).reduce((s, x) => s + x.ending, 0)), b = r2(r.values[0]); tested++;
+        const ni = r2(-tb.rows.filter(x => incomeStmt(x.account)).reduce((s, x) => s + x.ending, 0)), b = r2(r.values[0]); tested++;
         if (b !== ni) { bad++; add("BS-02", "Balance Sheet", `${r.account} ${r.name}`, "Current year earnings = net income per the TB", EX, "Balance Sheet", "Trial Balance (income and expense accounts)", b, ni, r2(b - ni), "Current year earnings on the Balance Sheet do not agree to the TB - the Balance Sheet was run before the final entries.", "Re-run the Balance Sheet after the final entry and replace the file."); }
         continue;
       }
-      const sign = num(r.account) >= 20000 ? -1 : 1, b = r2(r.values[0] * sign), tbBal = t ? r2(t.ending) : 0; tested++;
+      const sign = liabEquity(r.account) ? -1 : 1, b = r2(r.values[0] * sign), tbBal = t ? r2(t.ending) : 0; tested++;
       if (b !== tbBal) { bad++; add("BS-01", "Balance Sheet", `${r.account} ${r.name}`, "Balance Sheet balance = TB ending balance", EX, "Balance Sheet", "Trial Balance", b, tbBal, r2(b - tbBal), "Balance Sheet does not agree to the TB - the reports were run at different times.", "Re-run the Balance Sheet after the final entry and replace the file."); }
     }
     if (bad === 0) add("BS-01", "Balance Sheet", `${tested} accounts`, "Balance Sheet balance = TB ending balance", PA, "Balance Sheet", "Trial Balance", "", "", 0, "Every Balance Sheet account agrees to the TB.", "");
@@ -245,10 +265,14 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
         }
         if (n === 0 && list.length > 0) add(ruleId, "Cash", `${label} - ${list.length} ${kind.toLowerCase()}(s)`, T, PA, "Bank Rec", "", "", "", "", `Nothing outstanding over ${rules.cashMonitorDays} days.`, "");
       };
-      ageTest("CASH-02", "Outstanding check", b.outstandingChecks);
-      ageTest("CASH-03", "Outstanding deposit", b.outstandingDeposits);
-      ageTest("CASH-03", "Reconciling item", b.reconcilingItems);
-      ageTest("CASH-03", "Other item", b.otherItems);
+      // Only age the lines of a reconciliation whose PDF read foots. If it does not, the lines are not trustworthy (the
+      // prompt may have picked up cleared items as outstanding, as on Shiloh 09-2026) and CASH-00 already says so.
+      if (footOk) {
+        ageTest("CASH-02", "Outstanding check", b.outstandingChecks);
+        ageTest("CASH-03", "Outstanding deposit", b.outstandingDeposits);
+        ageTest("CASH-03", "Reconciling item", b.reconcilingItems);
+        ageTest("CASH-03", "Other item", b.otherItems);
+      }
       const recStatus = !footOk || !tieOk || oldest > rules.cashExceptionDays ? "Exception" : oldest > rules.cashWarningDays ? "Warning" : oldest > rules.cashMonitorDays ? "Monitor" : "Clean";
       recSummary.push({ account: label, glAccount: t ? t.account : "no match", reconciled: r2(b.reconciledBankBalance), glBalance: r2(b.glBalance), difference: r2(b.difference), oldest: oldest < 0 ? 0 : oldest, over30, status: recStatus });
     }
@@ -312,16 +336,18 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
   if (bcGood && bc && tbGood) {
     const ptd = col(bc, "ptd actual"), ytd = col(bc, "ytd actual"); let bad = 0, n = 0;
     for (const r of bc.rows.filter(x => x.kind === "detail")) {
-      const t = tbMap[r.account], sign = num(r.account) < 50000 ? -1 : 1, e = t ? r2(sign * t.ending) : 0, p = t ? r2(sign * (t.debit - t.credit)) : 0; n++;
-      if (r2(r.values[ytd]) !== e || r2(r.values[ptd]) !== p) { bad++; add("BC-01", "Budget Comparison", `${r.account} ${r.name}`, "BC actuals = TB activity (PTD and YTD)", EX, "Budget Comparison", "Trial Balance", r2(r.values[ytd]), e, r2(r.values[ytd] - e), "Budget Comparison does not agree to the TB - the reports were run at different times.", "Re-run the Budget Comparison after the final entry and replace the file."); }
+      const t = tbMap[r.account], sign = creditNormal(r.account) ? -1 : 1, e = t ? r2(sign * t.ending) : 0, p = t ? r2(sign * (t.debit - t.credit)) : 0; n++;
+      // A balance sheet line (capex on CBRE's tree) shows YTD activity, but the TB only has the month's movement and the
+      // balance since inception, so it can only be tied for the month.
+      if ((!liabEquity(r.account) && lead(r.account) !== 1 && !same(r.values[ytd], e)) || !same(r.values[ptd], p)) { bad++; add("BC-01", "Budget Comparison", `${r.account} ${r.name}`, "BC actuals = TB activity (PTD and YTD)", EX, "Budget Comparison", "Trial Balance", r2(r.values[ytd]), e, r2(r.values[ytd] - e), "Budget Comparison does not agree to the TB - the reports were run at different times.", "Re-run the Budget Comparison after the final entry and replace the file."); }
     }
     if (bad === 0) add("BC-01", "Budget Comparison", `${n} accounts`, "BC actuals = TB activity (PTD and YTD)", PA, "Budget Comparison", "Trial Balance", "", "", 0, "Every Budget Comparison account agrees to the TB.", "");
   }
   if (t12Good && t12 && tbGood) {
     const cur = t12.columns.length - 2; let bad = 0, n = 0;                                     // last column is "Total"
     for (const r of t12.rows.filter(x => x.kind === "detail")) {
-      const t = tbMap[r.account], sign = num(r.account) < 50000 ? -1 : 1, p = t ? r2(sign * (t.debit - t.credit)) : 0; n++;
-      if (r2(r.values[cur]) !== p) { bad++; add("T12-00", "T12", `${r.account} ${r.name}`, "T12 current month = TB period activity", EX, "T12", "Trial Balance", r2(r.values[cur]), p, r2(r.values[cur] - p), "T12 does not agree to the TB - the reports were run at different times.", "Re-run the T12 after the final entry and replace the file."); }
+      const t = tbMap[r.account], sign = creditNormal(r.account) ? -1 : 1, p = t ? r2(sign * (t.debit - t.credit)) : 0; n++;
+      if (!same(r.values[cur], p)) { bad++; add("T12-00", "T12", `${r.account} ${r.name}`, "T12 current month = TB period activity", EX, "T12", "Trial Balance", r2(r.values[cur]), p, r2(r.values[cur] - p), "T12 does not agree to the TB - the reports were run at different times.", "Re-run the T12 after the final entry and replace the file."); }
     }
     if (bad === 0) add("T12-00", "T12", `${n} accounts`, "T12 current month = TB period activity", PA, "T12", "Trial Balance", "", "", 0, "Every T12 account agrees to the TB for the month.", "");
   }
@@ -464,7 +490,7 @@ function main(workbook: ExcelScript.Workbook, propertyCode: string, reviewPeriod
   if (fee) {
     fee.issues.forEach(m => add("PMF-00", "Management Fee", "PM Fee workbook", "The PM Fee workbook could be read", WA, "PM Fee", "", "", "", "", m, "Correct the workbook and re-run."));
     const idOk = fee.ok && isOurs(fee.propertyCode) && isOurPeriod(fee.period);
-    add("PMF-00", "Management Fee", "PM Fee workbook", "The PM Fee workbook is for the requested property and period", idOk ? PA : EX, "PM Fee Calculation", "Review request", `${fee.propertyCode} ${fee.period}`, `${code} ${period}`, "", idOk ? "Correct property and period." : "The PM Fee workbook is for a different property or period.", idOk ? "" : `Replace with the PM Fee workbook for ${code} ${period}.`);
+    add("PMF-00", "Management Fee", "PM Fee workbook", "The PM Fee workbook is for the requested property and period", idOk ? PA : EX, "PM Fee Calculation", "Review request", `${fee.propertyCode} ${fee.period}`, `${code} ${period}`, "", idOk ? "Correct property and period." : !fee.ok ? "The PM Fee workbook could not be read as a Yardi Fee Pool workbook (see the line above), so no fee tests ran. Other fee templates, such as an income-based workbook, are not supported yet." : "The PM Fee workbook is for a different property or period.", idOk ? "" : `Replace with the PM Fee workbook for ${code} ${period}.`);
 
     if (idOk) {
       // PMF-01: the fee base adds up, and the template's own validation against the Yardi Report agrees

@@ -110,6 +110,28 @@ for (const bad of ['[]','{}','"x"','not json']) { let ok=true,res; try{res=revie
     t('accepted code without confirmation details still gets an SRC-04 finding',inWb(r,'SRC-04',/not supplied/)); }
   t('period not accepted: files for 07-2026 under an 08-2026 request are wrong-period exceptions, no SRC-04',has(rej,'SRC-02',/different/)&&!has(rej,'SRC-04')); }
 
+// ---- Second calibration property: Residences at Shiloh Crossing (rpresshi) 09-2026, reports from CBRE's Yardi (c6us0871,
+// CBRE chart of accounts). Live run R3/R4 (2026-10-27): BSSS, T12 and BC "not run", 41 Balance Sheet exceptions that all agreed.
+{ const SH=f=>mockWb(load('shiloh/'+f+'.json'));
+  const sTB=run('01_ReadTrialBalance',SH('tb')),sBSSS=run('02_ReadBSSS',SH('bsss')),sT12=run('03_ReadYardiFinancial',SH('t12')),sBC=run('03_ReadYardiFinancial',SH('bc')),sBAL=run('03_ReadYardiFinancial',SH('bs'));
+  const sGL=run('05_ReadGeneralLedger',SH('gl'),'',25000,90),sFEE=run('07_ReadPMFee',SH('pmfee'));
+  t('Shiloh T12 and Budget Comparison are read (headings sit above CBRE grouping rows)',sT12.ok&&sBC.ok&&sT12.rows.length===288&&sBC.columns[0]==='PTD Actual');
+  t('Shiloh Balance Sheet: CBRE total lines ("Land Total") are totals, not accounts',sBAL.rows.some(r=>r.account==='1010-1999'&&r.kind==='total'));
+  t('Shiloh BSSS: typed leading apostrophe is dropped from the property code (the code itself is mistyped c6us087a in the file)',sBSSS.propertyCode==='c6us087a');
+  const shRun=(pc)=>{const wb=template();const r=run('04_RunInternalReview',wb,pc,'09-2026','R1','Initial','f.xlsx','',S(sTB),S(sBSSS),S(sT12),S(sBC),S(sBAL),S(sGL),'','','[]',S(sFEE),'');r.wb=wb;return r};
+  const sh=shRun('rpresshi,c6us0871'); const shAll=sh.wb._data['All Results'].vals.slice(3).filter(x=>x[0]!=='');
+  const rows=(rule,st)=>shAll.filter(x=>x[14]===rule&&(!st||x[2]===st));
+  t('Shiloh Balance Sheet, T12 and Budget Comparison all tie to the TB on the CBRE chart',rows('BS-01','Pass').length===1&&!rows('BS-01','Exception').length&&!rows('BS-02').length&&rows('T12-00','Pass').length===1&&rows('BC-01','Pass').length===1);
+  t('Shiloh: the BSSS is still the wrong property (c6us087a typed in the file), so its tests do not run',rows('SRC-02','Exception').length===1&&/Balance Sheet Support/.test(rows('SRC-02','Exception')[0][3])&&!rows('BSSS-01').length);
+  t('Shiloh: SRC-05 warns the chart does not fit the ruleset, so range-based passes are not real',rows('SRC-05','Warning').length===1);
+  t('Shiloh: an unreadable fee workbook says so, not "different property"',rows('PMF-00','Exception').some(x=>/could not be read/.test(x[4])));
+  t('GOLDEN Shiloh 09-2026 (no bank rec, no AME): 2 exceptions, 8 warnings, 17 monitor, 17 passed',sh.exceptions===2&&sh.warnings===8&&sh.monitor===17&&sh.passed===17);
+  const fixed=shRun('rpresshi,c6us0871,c6us087a'); const fAll=fixed.wb._data['All Results'].vals.slice(3).filter(x=>x[0]!=='');
+  t('Shiloh with the BSSS code accepted: 48 schedules tie, 1610-1950 allowance is 0.20 off',fAll.filter(x=>x[14]==='BSSS-01'&&x[2]==='Pass').length===48&&fAll.some(x=>x[14]==='BSSS-01'&&x[2]==='Exception'&&/^1610-1950/.test(x[3])&&Math.abs(Math.abs(x[6])-0.2)<0.001)); }
+{ const o=C(REC0);o.bankRecs[0].bankStatementBalance+=150818.61; const r=review({rec:o});
+  t('a bank rec whose PDF read does not foot is an Exception and its lines are not aged (Shiloh R4 aged 67 cleared checks)',r.findings.some(f=>f.ruleId==='CASH-00'&&f.status==='Exception'&&/Operating/.test(f.item))&&!r.findings.some(f=>/^CASH-0[23]/.test(f.ruleId)&&/Operating/.test(f.item))); }
+{ const r=review(); t('610 West is on the ruleset chart: no SRC-05',!has(r,'SRC-05')); }
+
 // ---- Report template v2.0: layout, routing, Executive Summary sections
 { const g=require('./runall.js'); const d=g.wb._data;
   const hdr=d['BSSS'].vals[2]; t('v2 layout: Status, Account / Item, Finding, Required Action are the first four columns',hdr[0]==='Status'&&hdr[1]==='Account / Item'&&hdr[2]==='Finding'&&hdr[3]==='Required Action');

@@ -93,6 +93,7 @@ Every test the engine currently runs. Severity is the default in `defaultRuleset
 | SRC-02 | Each file is for the requested property and month, read from inside the file rather than the filename | Exception, and that file's tests are skipped |
 | SRC-03 | Each source could be read completely | Warning |
 | SRC-04 | Files for a different property code or period were accepted by the reviewing manager (names who and when) | Reviewed / Monitor |
+| SRC-05 | The TB's chart of accounts does not fit the ruleset's account ranges (range-based tests tested nothing) | Warning |
 | TB-01, TB-02 | TB sums to zero; Forward + Debit − Credit = Ending on every row | Exception |
 | BSSS-01 | Every BSSS schedule ties to the TB to the cent; reversed signs called out separately | Exception |
 | BSSS-02 | Balance sheet account with a balance and no schedule | Exception, Monitor or Warning per the coverage table |
