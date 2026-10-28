@@ -412,3 +412,18 @@ Type each utterance into the test panel and confirm the topic that fires.
 | (in the review) mn610wes, then 07-2026 | Flow runs; validation result shown; Teams message arrives |
 
 Then run one real review (mn610wes 07-2026) and one with a made-up property code, and confirm neither informational question above ever starts the flow.
+
+
+## Live changes 2026-10-28/29 (Manager Internal Review and Review Attempts)
+
+**Manager Internal Review** (the live name of Start Internal Review): a Set variables node at the top clears `Global.AcceptedCode` and `Global.AcceptedPeriod`; the property code and period are global (`Global.PropertyCodeList`, `Global.ReviewPeriod`); a guard Condition above the first Validate Flow action (`Global.LastReviewStarted is equal to Global.PropertyCodeList & "|" & Global.ReviewPeriod`) sends "A review for … was already started in this chat…" and ends the topic; after the first action, a Condition (`DetectedCode` or `DetectedPeriod` not blank) asks a Boolean question, yes = set the accepted globals and call Validate Flow again, no = "Review not started…" and End current topic; after the Note message, `Global.LastReviewStarted` = `If(StartsWith(Topic.Note, "Review started"), Global.PropertyCodeList & "|" & Global.ReviewPeriod, "")`. The Validate Flow tool is set to "Only when referenced by topics or agents".
+
+**Review Attempts and Re-Review Logic** message (replaces text that was written as instructions to the AI and showed to users verbatim):
+
+```
+Each time a review runs for a property and period, it creates a new report in the property's Internal Review > Review Results folder: R1 for the first run, then R2, R3 and so on. There is no limit on re-reviews. To re-run, correct the files in the Internal Review folder and ask for the review again in a new chat.
+
+Every finding keeps the same key from one attempt to the next, so the reports can be compared. The automatic comparison on the Changes Since Last Review tab (Resolved, Unresolved and New findings) is not built yet, so for now compare the two reports side by side.
+
+If a review fails partway through, it can leave an empty report that still uses up an attempt number. Delete that empty file before re-running.
+```
