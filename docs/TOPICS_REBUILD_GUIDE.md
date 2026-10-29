@@ -427,3 +427,7 @@ Every finding keeps the same key from one attempt to the next, so the reports ca
 
 If a review fails partway through, it can leave an empty report that still uses up an attempt number. Delete that empty file before re-running.
 ```
+
+## Classic orchestration (live 2026-10-29)
+
+The agent now runs on **classic** orchestration (Settings → Generative AI → Classic), with Allow ungrounded responses off. Reason: under generative orchestration the AI kept writing its own message after the topic ended, inventing rules and files ("1 of 3 attempts", a CAM/CAOD re-review approval, an "outlier file" Profit_And_Loss_2025), even with Instructions telling it not to. In classic mode a topic starts only from its trigger phrases and says only what it was built to say. Every topic needs trigger phrases (the generative descriptions do nothing in classic). Manager Internal Review uses: start internal review, run internal review, run the monthly review, run a review, start review, run the review, kick off the review. The others use the Part C phrases, less "run it again", "ready for release" and "not ready". Tested 2026-10-29: a property whose site the flow cannot find ends cleanly at "Review not started." with nothing after it.
