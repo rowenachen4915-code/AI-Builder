@@ -82,3 +82,31 @@ if(equals(length(outputs('Accounting_Sites')),1), concat('SITE: ', outputs('Site
 Agent flows run on the flow owner's connections, not the manager's. The search only finds sites the connection account can open; in my run, 65 TruAmerica properties came back empty for that reason or because their URLs don't contain the Yardi code. For production we'll ask Lauren to set the connections up under an account that has access to all the Prop- sites. Once that's in place, the old Excel can be retired.
 
 Let me know if you have any questions.
+
+---
+
+## Checklist: every step that used the Excel site address (added 2026-10-30)
+
+From the 2026-10-26 flow export. Each must read `outputs('Site_URL')` instead of `first(body('List_rows_present_in_a_table')?['value'])?['FlowSiteURL']`. SharePoint steps call the box **Site Address**; Excel "Run script" steps call it **Location**.
+
+| # | Step | Where it sits | Box |
+|---|---|---|---|
+| 1 | Get files (properties only) | top level | Site Address |
+| 2 | Get Drive Id | Required Files Complete → True | Site Address |
+| 3 | Make Results Folder | Required Files Complete → True | Site Address |
+| 4 | List Old Reports | Required Files Complete → True | Site Address |
+| 5 | Create Report | Required Files Complete → True | Site Address |
+| 6 | Get file properties (delete if IDENTITY_CHECK step 11 was done) | Required Files Complete → True | Site Address |
+| 7 | Get Report Link | Required Files Complete → True | Site Address |
+| 8 | Run Review | Required Files Complete → True | Location |
+| 9 | Read TB | Have TB → True | Location |
+| 10 | Read BSSS | Have BSSS | Location |
+| 11 | Read T12 | Have T12 | Location |
+| 12 | Read BC | Have BC | Location |
+| 13 | Read BS | Have BS | Location |
+| 14 | Read GL | Have GL | Location |
+| 15 | Read PM Fee | Have PM Fee | Location |
+| 16 | Get BankRec PDF | Have BANKREC → Each BankRec PDF loop | Site Address |
+| 17 | Get Mortgage PDF | Have MORTGAGE | Site Address |
+
+Proof all are done: delete **List rows present in a table** and **Save draft**. If any step still points at it, the save is refused and the error names the step.
