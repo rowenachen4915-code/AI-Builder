@@ -53,6 +53,12 @@ Work:
 - Keep the per-client ruleset (T5) for what can't be detected (which accounts are utilities, contracts, depreciation), and say which tests used defaults.
 Acceptance: 610 West golden unchanged; Shiloh and prim0051-0053 produce trend findings; a pass row always names a non-zero number of accounts tested.
 
+### T5c. Executive Summary carries everything important — owner, to discuss (added 2026-10-30)
+Goal from the owner: a manager should be able to review from the Executive Summary alone, without opening every tab. Start by going over the reporting guideline together (what counts as "important", how much fits on one page) before changing the template.
+Today the summary has: header, Manager Decision (D8), four counts, the Review Areas table, a BSSS section (counts plus up to 10 accounts needing attention) and a Bank Reconciliations section (one row per rec). Every other Exception and Warning is only on its area tab.
+To decide with the owner: which findings always surface (all Exceptions? Warnings above an amount?), a "top items" list per area, how to show tests that did not run (SRC-05, missing sources, "Not tested" from T5b) so a short summary never looks cleaner than it is, and whether the Teams card should mirror it.
+Constraint: the summary layout is a contract between tools/build_template.py and the writer in script 04; change both together, then rebuild fixtures and the sample report.
+
 ### T5. Move rules out of the script into a ruleset
 **Why:** Thresholds, the BSSS coverage table, account ranges, AME tie mappings, depreciation accounts and PM Fee terms are hardcoded in `defaultRuleset()`. Different clients use different charts of accounts. Running one chart's rules against another property's chart can pass it wrongly, which is the worst silent failure available.
 **Do:** Define the `RuleSet` JSON schema (the interface already exists in script 04). Write `rulesets/greystar-yardi-base.json` from the current defaults. Validate a supplied ruleset on entry: unknown keys, missing keys, wrong types → a controlled Exception, not a crash. Add a guard: if more than N% of the TB's balance-sheet accounts fall outside the ruleset's coverage table, raise an Exception saying the ruleset probably doesn't match this chart.
