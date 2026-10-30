@@ -1,6 +1,6 @@
 # TASKS — Internal Review Agent backlog
 
-> **START HERE (2026-10-30, for "let's start"):** Step 1 of the site-lookup checklist in `docs/SITE_LOOKUP_BY_SEARCH.md` (bottom section): back up, delete **List rows present in a table**, Save draft; if refused, switch each named step's Site Address / Location to `outputs('Site_URL')`; then publish and run rpsumlak 09-2026 (Yes to prim0052) through to the Teams card with a working link. After that: the flow's Note should say why a review did not start (SITE NOT FOUND line from Thai's doc, missing file names); file-name filters that ignore spaces/underscores/hyphens (Filter GL done by owner?); exception list for sites without the Yardi code in the URL; service account (Lauren).
+> **START HERE (2026-10-30, for "let's start"):** Step 1 of the site-lookup checklist in `docs/SITE_LOOKUP_BY_SEARCH.md` (bottom section): back up, delete **List rows present in a table**, Save draft; if refused, switch each named step's Site Address / Location to `outputs('Site_URL')`; then publish and run rpsumlak 09-2026 (Yes to prim0052) through to the Teams card with a working link. After that: the flow's Note should say why a review did not start (SITE NOT FOUND line from Thai's doc, missing file names); file-name filters that ignore spaces/underscores/hyphens (Filter GL done by owner?); exception list for sites without the Yardi code in the URL; service account (Lauren). Owner priority after that: T5b (every script reads any client chart).
 
 > **Where we left off (2026-10-29).** Shiloh R5 ran with one Teams card; agent Instructions and Review Attempts message in. rpsumlak (client code prim0052) now finds its site (row added to the PropertySiteDirectory table) and the confirmation question works; the review then stopped because Filter GL did not match `GeneralLedger_prim0052_Accrual.xlsx` (fix: advanced-mode expression stripping spaces/underscores/hyphens, `generalledger`; owner applying). The AI still writes its own messages after the topic ends (invented "Profit_And_Loss_2025" outlier question, "1 of 3 attempts").
 > **Done 2026-10-29:** classic orchestration live, all topics have trigger phrases, ungrounded responses off; the AI no longer adds messages.
@@ -41,6 +41,17 @@ Ordered by priority. Each task says whether it changes a `main()` signature, bec
 ---
 
 ## P2 — Configuration that is currently guesswork
+
+### T5b. Every script reads any client's chart of accounts — owner priority (added 2026-10-30)
+Goal from the owner: the review must work on any Yardi database and chart, not only Greystar's 5-digit chart (CBRE 4-digit 1510-2420 on Shiloh, LaSalle 6-digit 420100/531100 on prim0051-0053, and whatever comes next), without rewriting scripts per client.
+Evidence: the prim0051/52/53 09-2026 T12s came back "clean" because the trend tests look at 40000-69999 and every account is 6 digits, so 0 accounts were tested and the report still said Pass. Re-run on 400000-699999 with the same thresholds: 26 / 24 / 29 flags, including real ones (prim0053 533400 $0 after 11 of 11 months; prim0052 533100 -91.35 against a 4,570 average). Payroll up ~50% at all three looks like a three-pay-date month.
+Work:
+- Review all seven scripts for anything tied to Greystar's chart: account ranges, fixed account numbers (depreciation 68010-000, fee accounts, 22005, 23030/23045), section names ("Debt Service", "Contract Services", "Management Fees"), and the 5-digit `num()` boundaries (e.g. BC-02/BC-03 `< 70000`).
+- Derive account class from the TB itself (leading digit and the report's own section headings), as `lead()` / `liabEquity()` / `incomeStmt()` already do, so ranges scale with the number of digits.
+- Never report Pass when a test tested 0 accounts: say "Not tested - chart not recognised".
+- Readers: confirm 01/03/05 read 4-, 5- and 6-digit and hyphenated codes; 02 (BSSS) and 07 (PM fee) only read Greystar templates today (LaSalle BSSS, OneSite and income-based fee workbooks are unread).
+- Keep the per-client ruleset (T5) for what can't be detected (which accounts are utilities, contracts, depreciation), and say which tests used defaults.
+Acceptance: 610 West golden unchanged; Shiloh and prim0051-0053 produce trend findings; a pass row always names a non-zero number of accounts tested.
 
 ### T5. Move rules out of the script into a ruleset
 **Why:** Thresholds, the BSSS coverage table, account ranges, AME tie mappings, depreciation accounts and PM Fee terms are hardcoded in `defaultRuleset()`. Different clients use different charts of accounts. Running one chart's rules against another property's chart can pass it wrongly, which is the worst silent failure available.
